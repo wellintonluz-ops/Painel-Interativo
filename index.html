@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apontamento de Produção Avançado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4e6;
+            color: #1f2937;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-button {
+            @apply flex-1 py-2 px-4 text-center cursor-pointer font-semibold transition-colors;
+        }
+        .tab-button.active {
+            @apply bg-indigo-600 text-white rounded-t-lg;
+        }
+        .tab-button:not(.active) {
+            @apply bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-t-lg;
+        }
+        .product-item {
+            @apply p-2 bg-gray-100 rounded border border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors;
+        }
+        .etapa-concluida {
+            background-color: #d1fae5;
+            border-color: #6ee7b7;
+        }
+    </style>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, Timestamp, where, doc, getDoc, setDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        window.firebase = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, addDoc, onSnapshot, query, getDocs, Timestamp, where, doc, getDoc, setDoc, orderBy, setDoc };
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl border border-gray-200">
+        <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Sistema de Apontamento</h1>
+        
+        <div class="text-center text-sm mb-4 text-gray-500">
+            <p>ID do Usuário: <span id="userIdDisplay" class="font-mono text-xs">Carregando...</span></p>
+        </div>
+
+        <!-- Abas de Navegação -->
+        <div class="flex space-x-2 mb-6">
+            <div id="cadastroTabBtn" class="tab-button active">Cadastro de Produtos</div>
+            <div id="apontamentoTabBtn" class="tab-button">Apontamento de Ordem</div>
+            <div id="historicoTabBtn" class="tab-button">Histórico de Ordens</div>
+        </div>
+
+        <!-- Seção de Cadastro de Produtos -->
+        <div id="cadastroTab" class="tab-content active">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Cadastro de Produtos</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="codigoProdutoCadastro" class="block text-sm font-medium text-gray-700">Código do Produto Acabado</label>
+                    <input type="text" id="codigoProdutoCadastro" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: UAC0001-N">
+                </div>
+                <div id="etapasContainer" class="space-y-4">
+                    <!-- Etapas serão adicionadas aqui -->
+                </div>
+                <button id="addEtapaBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow">Adicionar Etapa</button>
+                <button id="salvarProdutoBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow">Salvar Produto</button>
+            </div>
+            <div id="produtosSalvos" class="mt-8">
+                <h3 class="text-xl font-semibold mb-2">Produtos Cadastrados</h3>
+                <ul id="listaProdutosCadastrados" class="list-none space-y-2"></ul>
+            </div>
+        </div>
+
+        <!-- Seção de Apontamento de Ordem de Produção -->
+        <div id="apontamentoTab" class="tab-content">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Apontamento de Ordem de Produção</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="numeroOrdem" class="block text-sm font-medium text-gray-700">Número da Ordem</label>
+                    <input type="text" id="numeroOrdem" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: 123456">
+                </div>
+                <div>
+                    <label for="produtoApontamento" class="block text-sm font-medium text-gray-700">Código do Produto</label>
+                    <select id="produtoApontamento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        <option value="">Selecione um produto...</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="quantidadeApontamento" class="block text-sm font-medium text-gray-700">Quantidade</label>
+                    <input type="number" id="quantidadeApontamento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: 100">
+                </div>
+                <button id="abrirOrdemBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow">Abrir Ordem</button>
+            </div>
+        </div>
+        
+        <!-- Seção de Histórico de Ordens -->
+        <div id="historicoTab" class="tab-content">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Histórico de Ordens</h2>
+            
+            <!-- Detalhes da Ordem Explodida -->
+            <div id="ordemDetalhes" class="hidden mt-8 p-4 bg-white rounded-lg shadow-md border border-gray-200">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800 text-center">Detalhes da Ordem #<span id="ordemNumeroDisplay">--</span></h3>
+                <div class="flex justify-center space-x-4 mb-4">
+                    <button id="finalizarOrdemBtn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg" disabled>Finalizar Ordem</button>
+                    <button id="voltarBtn" class="bg-gray-400 hover:bg-gray-500 text-white font-semibold py-2 px-6 rounded-lg shadow-lg">Voltar</button>
+                </div>
+                <div id="etapasApontamento" class="space-y-6">
+                    <!-- Etapas da ordem serão geradas aqui -->
+                </div>
+            </div>
+            
+            <div id="listasDeOrdens" class="space-y-6">
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-700">Ordens Em Andamento</h3>
+                    <ul id="ordensEmAndamentoUl" class="list-none space-y-2"></ul>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-700">Ordens Concluídas</h3>
+                    <ul id="ordensConcluidasUl" class="list-none space-y-2"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Justificativa de Pausa -->
+        <div id="justificativaModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200">
+                <h3 class="text-lg font-bold mb-4">Justificativa da Pausa</h3>
+                <textarea id="justificativaInput" rows="4" class="block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Motivo da pausa"></textarea>
+                <div class="mt-4 flex justify-end space-x-2">
+                    <button id="salvarJustificativaBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">Salvar</button>
+                    <button id="cancelarJustificativaBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal para preencher responsável -->
+        <div id="responsavelModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200">
+                <h3 class="text-lg font-bold mb-4">Responsável pela Etapa</h3>
+                <input type="text" id="responsavelInput" class="block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Nome do operador">
+                <div class="mt-4 flex justify-end space-x-2">
+                    <button id="salvarResponsavelBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">Salvar</button>
+                    <button id="cancelarResponsavelBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal de Aviso -->
+        <div id="avisoModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm border border-gray-200 text-center">
+                <p id="avisoText" class="text-lg mb-4 text-gray-700">--</p>
+                <button id="fecharAvisoBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, addDoc, onSnapshot, query, getDocs, Timestamp, where, doc, getDoc, setDoc, orderBy } = window.firebase;
+
+        // Elementos de navegação
+        const cadastroTabBtn = document.getElementById('cadastroTabBtn');
+        const apontamentoTabBtn = document.getElementById('apontamentoTabBtn');
+        const historicoTabBtn = document.getElementById('historicoTabBtn');
+        const cadastroTab = document.getElementById('cadastroTab');
+        const apontamentoTab = document.getElementById('apontamentoTab');
+        const historicoTab = document.getElementById('historicoTab');
+
+        // Elementos do cadastro
+        const codigoProdutoCadastroInput = document.getElementById('codigoProdutoCadastro');
+        const etapasContainer = document.getElementById('etapasContainer');
+        const addEtapaBtn = document.getElementById('addEtapaBtn');
+        const salvarProdutoBtn = document.getElementById('salvarProdutoBtn');
+        const listaProdutosCadastradosUl = document.getElementById('listaProdutosCadastrados');
+
+        // Elementos do apontamento
+        const numeroOrdemInput = document.getElementById('numeroOrdem');
+        const produtoApontamentoSelect = document.getElementById('produtoApontamento');
+        const quantidadeApontamentoInput = document.getElementById('quantidadeApontamento');
+        const abrirOrdemBtn = document.getElementById('abrirOrdemBtn');
+        const ordemDetalhesDiv = document.getElementById('ordemDetalhes');
+        const ordemNumeroDisplay = document.getElementById('ordemNumeroDisplay');
+        const finalizarOrdemBtn = document.getElementById('finalizarOrdemBtn');
+        const etapasApontamentoDiv = document.getElementById('etapasApontamento');
+
+        // Elementos do histórico
+        const ordensEmAndamentoUl = document.getElementById('ordensEmAndamentoUl');
+        const ordensConcluidasUl = document.getElementById('ordensConcluidasUl');
+        const listasDeOrdensDiv = document.getElementById('listasDeOrdens');
+        const voltarBtn = document.getElementById('voltarBtn');
+
+        // Elementos de controle
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const justificativaModal = document.getElementById('justificativaModal');
+        const justificativaInput = document.getElementById('justificativaInput');
+        const salvarJustificativaBtn = document.getElementById('salvarJustificativaBtn');
+        const cancelarJustificativaBtn = document.getElementById('cancelarJustificativaBtn');
+        const responsavelModal = document.getElementById('responsavelModal');
+        const responsavelInput = document.getElementById('responsavelInput');
+        const salvarResponsavelBtn = document.getElementById('salvarResponsavelBtn');
+        const cancelarResponsavelBtn = document.getElementById('cancelarResponsavelBtn');
+        const avisoModal = document.getElementById('avisoModal');
+        const avisoText = document.getElementById('avisoText');
+        const fecharAvisoBtn = document.getElementById('fecharAvisoBtn');
+
+        // Variáveis de estado
+        let db, auth, userId;
+        let ordemProducaoAtual = {};
+        let currentPauseContext = null;
+        let currentStartContext = null;
+        let currentEditingProductId = null;
+        let currentOrderDocId = null;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = {
+          apiKey: "AIzaSyBDb1E_wHtmISvNG31RhlmP979890X7nxY",
+          authDomain: "apontamentoproducao-f141e.firebaseapp.com",
+          projectId: "apontamentoproducao-f141e",
+          storageBucket: "apontamentoproducao-f141e.firebasestorage.app",
+          messagingSenderId: "516590802933",
+          appId: "1:516590802933:web:756d1e76d981e51604b2bc",
+          measurementId: "G-3ZF5SLW87S"
+        };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Funções de utilidade
+        function showAviso(message) {
+            avisoText.textContent = message;
+            avisoModal.classList.remove('hidden');
+        }
+        function formatarTempo(ms) {
+            const segundos = Math.floor(ms / 1000);
+            const minutos = Math.floor(segundos / 60);
+            const horas = Math.floor(minutos / 60);
+            const s = segundos % 60;
+            const m = minutos % 60;
+            const h = horas % 24;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+        function checkAllSubetapasConcluded(etapa) {
+            return etapa.subetapas.every(subetapa => subetapa.fim !== null);
+        }
+        function checkAllEtapasConcluded(ordem) {
+            return ordem.etapas.every(etapa => etapa.concluida);
+        }
+
+        // Funções do Firebase
+        async function initializeFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        setupListeners();
+                    } else {
+                        userIdDisplay.textContent = 'Não autenticado';
+                    }
+                });
+            } catch (error) {
+                console.error("Erro ao inicializar Firebase ou autenticar:", error);
+                showAviso("Erro ao conectar com o banco de dados. Por favor, tente novamente.");
+            }
+        }
+        
+        async function setupListeners() {
+            if (!userId) return;
+            
+            // Listener para a lista de produtos cadastrados
+            const produtosRef = collection(db, `artifacts/${appId}/public/data/produtos`);
+            onSnapshot(produtosRef, (snapshot) => {
+                listaProdutosCadastradosUl.innerHTML = '';
+                produtoApontamentoSelect.innerHTML = '<option value="">Selecione um produto...</option>';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.classList.add('product-item');
+                    li.textContent = data.codigo;
+                    li.dataset.id = doc.id;
+                    li.addEventListener('click', () => {
+                        fillFormForEditing(doc.id, data);
+                    });
+                    listaProdutosCadastradasUl.appendChild(li);
+
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.codigo;
+                    produtoApontamentoSelect.appendChild(option);
+                });
+            });
+            
+            // Listener para o histórico de ordens
+            const ordensRef = collection(db, `artifacts/${appId}/public/data/ordens`);
+            onSnapshot(ordensRef, (snapshot) => {
+                ordensEmAndamentoUl.innerHTML = '';
+                ordensConcluidasUl.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.classList.add('p-4', 'bg-gray-100', 'rounded-lg', 'border', 'border-gray-200');
+                    if (!data.concluida) {
+                        li.classList.add('cursor-pointer', 'hover:bg-gray-200');
+                        li.addEventListener('click', () => {
+                            carregarOrdemParaApontamento(doc.id, data);
+                        });
+                    }
+                    li.innerHTML = `
+                        <p class="font-semibold text-gray-800">Ordem #${data.numero}</p>
+                        <p class="text-sm text-gray-600"><strong>Produto:</strong> ${data.produto}</p>
+                        <p class="text-sm text-gray-600"><strong>Quantidade:</strong> ${data.quantidade}</p>
+                        <p class="text-sm text-gray-600"><strong>Início:</strong> ${data.dataInicio ? data.dataInicio.toDate().toLocaleString('pt-BR') : '--'}</p>
+                        <p class="text-sm text-gray-600"><strong>Fim:</strong> ${data.dataFim ? data.dataFim.toDate().toLocaleString('pt-BR') : '--'}</p>
+                        <p class="text-sm text-gray-600"><strong>Status:</strong> ${data.concluida ? 'Concluída' : 'Em Andamento'}</p>
+                    `;
+                    if (data.concluida) {
+                        ordensConcluidasUl.appendChild(li);
+                    } else {
+                        ordensEmAndamentoUl.appendChild(li);
+                    }
+                });
+            });
+        }
+
+        async function carregarOrdemParaApontamento(orderId, orderData) {
+            currentOrderDocId = orderId;
+            ordemProducaoAtual = orderData;
+            switchTab('historicoTab');
+            
+            listasDeOrdensDiv.classList.add('hidden');
+            ordemDetalhesDiv.classList.remove('hidden');
+            
+            finalizarOrdemBtn.disabled = !checkAllEtapasConcluded(ordemProducaoAtual);
+            
+            renderizarOrdem();
+        }
+        
+        function fillFormForEditing(id, data) {
+            currentEditingProductId = id;
+            codigoProdutoCadastroInput.value = data.codigo;
+            etapasContainer.innerHTML = '';
+            data.etapas.forEach(etapa => {
+                const etapaDiv = createEtapaField(etapa.nome);
+                const subetapasContainer = etapaDiv.querySelector('.subetapas-container');
+                etapa.subetapas.forEach(subetapa => {
+                    createSubetapaField(subetapasContainer, subetapa.nome);
+                });
+            });
+            salvarProdutoBtn.textContent = 'Atualizar Produto';
+        }
+
+        // Funções de manipulação do DOM
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.getElementById(`${tabId}Btn`).classList.add('active');
+            
+            if (tabId === 'cadastroTab') {
+                salvarProdutoBtn.textContent = 'Salvar Produto';
+                currentEditingProductId = null;
+            }
+        }
+        
+        // Funções de criação dinâmica de campos de formulário
+        function createEtapaField(etapaNome = '') {
+            const etapaDiv = document.createElement('div');
+            etapaDiv.classList.add('etapa', 'p-4', 'border', 'rounded-lg', 'bg-gray-50', 'space-y-2');
+            etapaDiv.innerHTML = `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Nome da Etapa</label>
+                    <input type="text" class="etapa-nome mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: Corte" value="${etapaNome}">
+                </div>
+                <div class="subetapas-container pl-4 space-y-2"></div>
+                <div class="flex space-x-2">
+                    <button type="button" class="add-subetapa-btn flex-1 bg-blue-400 hover:bg-blue-500 text-white font-semibold py-1 px-2 rounded-md text-sm shadow-sm">Adicionar Sub-etapa</button>
+                    <button type="button" class="remove-etapa-btn flex-1 bg-red-400 hover:bg-red-500 text-white font-semibold py-1 px-2 rounded-md text-sm shadow-sm">Remover Etapa</button>
+                </div>
+            `;
+            etapasContainer.appendChild(etapaDiv);
+            
+            etapaDiv.querySelector('.add-subetapa-btn').addEventListener('click', () => createSubetapaField(etapaDiv.querySelector('.subetapas-container')));
+            etapaDiv.querySelector('.remove-etapa-btn').addEventListener('click', () => etapaDiv.remove());
+
+            return etapaDiv;
+        }
+        
+        function createSubetapaField(container, subetapaNome = '') {
+            const subetapaDiv = document.createElement('div');
+            subetapaDiv.classList.add('subetapa', 'flex', 'items-center', 'space-x-2');
+            subetapaDiv.innerHTML = `
+                <input type="text" class="subetapa-nome flex-1 block w-full rounded-md border-gray-300 shadow-sm p-2 text-sm" placeholder="Nome da Sub-etapa" value="${subetapaNome}">
+                <button type="button" class="remove-subetapa-btn bg-red-400 hover:bg-red-500 text-white font-semibold py-1 px-2 rounded-md text-sm shadow-sm">Remover</button>
+            `;
+            container.appendChild(subetapaDiv);
+            
+            subetapaDiv.querySelector('.remove-subetapa-btn').addEventListener('click', () => subetapaDiv.remove());
+        }
+
+        // Lógica de manipulação de pausas
+        document.getElementById('salvarJustificativaBtn').addEventListener('click', async () => {
+            if (!currentPauseContext) return;
+            const justificativa = justificativaInput.value;
+            if (justificativa.trim() === '') {
+                showAviso("A justificativa não pode estar vazia.");
+                return;
+            }
+            
+            const { index, subIndex } = currentPauseContext;
+            const pauseTime = new Date().getTime();
+            
+            const subetapaData = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+            if (subetapaData.emPausa) {
+                 const lastPause = subetapaData.pausas[subetapaData.pausas.length - 1];
+                 lastPause.fim = pauseTime;
+                 const duracao = lastPause.fim - lastPause.inicio;
+                 subetapaData.tempoTotalPausas += duracao;
+                 document.querySelector(`.subetapa-card[data-index="${index}"][data-sub-index="${subIndex}"] .pausar-btn`).textContent = 'Pausar';
+                 subetapaData.emPausa = false;
+            } else {
+                 subetapaData.pausas.push({
+                     justificativa: justificativa,
+                     inicio: pauseTime
+                 });
+                 document.querySelector(`.subetapa-card[data-index="${index}"][data-sub-index="${subIndex}"] .pausar-btn`).textContent = 'Continuar';
+                 subetapaData.emPausa = true;
+            }
+
+            justificativaInput.value = '';
+            justificativaModal.classList.add('hidden');
+            currentPauseContext = null;
+
+            await updateOrderInFirestore();
+        });
+
+        document.getElementById('cancelarJustificativaBtn').addEventListener('click', () => {
+            justificativaInput.value = '';
+            justificativaModal.classList.add('hidden');
+            currentPauseContext = null;
+        });
+        
+        // Lógica para preencher responsável e iniciar a etapa
+        salvarResponsavelBtn.addEventListener('click', async () => {
+            if (!currentStartContext) return;
+            const responsavel = responsavelInput.value.trim();
+            if (responsavel === '') {
+                showAviso("O nome do responsável não pode estar vazio.");
+                return;
+            }
+
+            const { parent, index, subIndex } = currentStartContext;
+            const now = new Date().getTime();
+            
+            // Lógica para subetapa
+            const subetapaData = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+            subetapaData.inicio = now;
+            subetapaData.responsavel = responsavel;
+            parent.querySelector('.responsavel-subetapa-display').textContent = `Responsável: ${responsavel}`;
+            
+            // Inicia a etapa pai se ainda não estiver iniciada
+            const etapaData = ordemProducaoAtual.etapas[index];
+            if (!etapaData.inicio) {
+                etapaData.inicio = now;
+                etapaData.responsavel = responsavel;
+                const parentEtapaElement = document.querySelector(`.etapa-card[data-index="${index}"]`);
+                parentEtapaElement.querySelector('.responsavel-etapa-display').textContent = `Responsável: ${responsavel}`;
+                
+                // Inicia a ordem completa se for a primeira etapa
+                if (!ordemProducaoAtual.dataInicio) {
+                    ordemProducaoAtual.dataInicio = Timestamp.now();
+                }
+            }
+            
+            parent.querySelector('.iniciar-btn').disabled = true;
+            parent.querySelector('.pausar-btn').disabled = false;
+            parent.querySelector('.concluir-btn').disabled = false;
+            
+            responsavelModal.classList.add('hidden');
+            responsavelInput.value = '';
+            currentStartContext = null;
+            
+            await updateOrderInFirestore();
+        });
+
+        cancelarResponsavelBtn.addEventListener('click', () => {
+            responsavelModal.classList.add('hidden');
+            responsavelInput.value = '';
+            currentStartContext = null;
+        });
+
+        function handleConclude(event) {
+            const btn = event.target;
+            const parent = btn.closest('.subetapa-card');
+            if (!parent) return;
+
+            const index = parseInt(parent.dataset.index);
+            const subIndex = parseInt(parent.dataset.subIndex);
+
+            const subetapaData = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+            const etapaData = ordemProducaoAtual.etapas[index];
+            const parentEtapaElement = document.querySelector(`.etapa-card[data-index="${index}"]`);
+
+            if (!subetapaData.inicio) {
+                showAviso("Sub-etapa não iniciada.");
+                return;
+            }
+            if (subetapaData.fim) {
+                showAviso("Sub-etapa já concluída.");
+                return;
+            }
+            if (subetapaData.emPausa) {
+                showAviso("Não é possível concluir enquanto a sub-etapa está em pausa.");
+                return;
+            }
+
+            const now = new Date().getTime();
+            subetapaData.fim = now;
+            const tempoBruto = now - subetapaData.inicio;
+            const tempoLiquido = tempoBruto - subetapaData.tempoTotalPausas;
+            subetapaData.tempoLiquido = tempoLiquido;
+            subetapaData.tempoLiquidoFormatado = formatarTempo(tempoLiquido);
+            
+            const tempoLiquidoEmHoras = tempoLiquido / (1000 * 60 * 60);
+            subetapaData.produtividade = tempoLiquidoEmHoras > 0 ? subetapaData.quantidade / tempoLiquidoEmHoras : 0;
+            
+            btn.disabled = true;
+            parent.querySelector('.iniciar-btn').disabled = true;
+            parent.querySelector('.pausar-btn').disabled = true;
+
+            showAviso(`Sub-etapa "${subetapaData.nome}" concluída! Tempo Líquido: ${subetapaData.tempoLiquidoFormatado}`);
+            parent.classList.add('etapa-concluida');
+
+            // Checa se todas as subetapas da etapa pai foram concluídas
+            const allSubetapasConcluidas = checkAllSubetapasConcluded(etapaData);
+
+            if (allSubetapasConcluidas) {
+                // Calcula o tempo total da etapa pai
+                let totalTempoLiquidoEtapa = 0;
+                let totalTempoPausasEtapa = 0;
+
+                etapaData.subetapas.forEach(sub => {
+                    totalTempoLiquidoEtapa += sub.tempoLiquido;
+                    totalTempoPausasEtapa += sub.tempoTotalPausas;
+                });
+                
+                etapaData.fim = now;
+                etapaData.tempoLiquido = totalTempoLiquidoEtapa;
+                etapaData.tempoTotalPausas = totalTempoPausasEtapa;
+                etapaData.tempoLiquidoFormatado = formatarTempo(totalTempoLiquidoEtapa);
+                etapaData.concluida = true;
+
+                // Atualiza o display da etapa pai
+                parentEtapaElement.querySelector('.tempo-liquido-etapa').textContent = etapaData.tempoLiquidoFormatado;
+                parentEtapaElement.querySelector('.pausas-etapa').textContent = formatarTempo(etapaData.tempoTotalPausas);
+                parentEtapaElement.classList.add('etapa-concluida');
+                
+                showAviso(`Etapa "${etapaData.nome}" concluída automaticamente!`);
+
+                const allEtapasConcluidas = checkAllEtapasConcluded(ordemProducaoAtual);
+                if (allEtapasConcluidas) {
+                    handleFinalizeMainAutomatic();
+                }
+            }
+            updateOrderInFirestore(); // Atualiza a ordem após a conclusão da sub-etapa
+        }
+        
+        async function updateOrderInFirestore() {
+            if (!currentOrderDocId) return;
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/data/ordens`, currentOrderDocId);
+                await setDoc(docRef, ordemProducaoAtual);
+            } catch (e) {
+                console.error("Erro ao atualizar ordem no Firestore:", e);
+                showAviso("Erro ao atualizar a ordem. Verifique sua conexão.");
+            }
+        }
+
+        async function handleFinalizeMainAutomatic() {
+            if (ordemProducaoAtual.concluida) return;
+            ordemProducaoAtual.dataFim = Timestamp.now();
+            
+            let totalTempoLiquidoOrdem = 0;
+            ordemProducaoAtual.etapas.forEach(etapa => {
+                totalTempoLiquidoOrdem += etapa.tempoLiquido;
+            });
+
+            ordemProducaoAtual.tempoLiquidoMs = totalTempoLiquidoOrdem;
+            ordemProducaoAtual.tempoLiquidoFormatado = formatarTempo(totalTempoLiquidoOrdem);
+            
+            const tempoLiquidoEmHoras = ordemProducaoAtual.tempoLiquidoMs / (1000 * 60 * 60);
+            ordemProducaoAtual.produtividade = tempoLiquidoEmHoras > 0 ? ordemProducaoAtual.quantidade / tempoLiquidoEmHoras : 0;
+            ordemProducaoAtual.concluida = true;
+            
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/data/ordens`, currentOrderDocId);
+                await setDoc(docRef, ordemProducaoAtual);
+                showAviso("Ordem de produção finalizada e salva automaticamente com sucesso!");
+                ordemDetalhesDiv.classList.add('hidden');
+                listasDeOrdensDiv.classList.remove('hidden');
+            } catch (e) {
+                console.error("Erro ao salvar ordem automaticamente:", e);
+                showAviso("Erro ao salvar ordem. Verifique a conexão.");
+            }
+        }
+        
+        async function handleFinalizeMain() {
+            if (ordemProducaoAtual.concluida) return;
+
+            const allEtapasConcluidas = checkAllEtapasConcluded(ordemProducaoAtual);
+            if (!allEtapasConcluidas) {
+                showAviso("Não é possível finalizar a ordem. Algumas etapas ainda não foram concluídas.");
+                return;
+            }
+            
+            ordemProducaoAtual.dataFim = Timestamp.now();
+            
+            let totalTempoLiquidoOrdem = 0;
+            ordemProducaoAtual.etapas.forEach(etapa => {
+                totalTempoLiquidoOrdem += etapa.tempoLiquido;
+            });
+
+            ordemProducaoAtual.tempoLiquidoMs = totalTempoLiquidoOrdem;
+            ordemProducaoAtual.tempoLiquidoFormatado = formatarTempo(totalTempoLiquidoOrdem);
+            
+            const tempoLiquidoEmHoras = ordemProducaoAtual.tempoLiquidoMs / (1000 * 60 * 60);
+            ordemProducaoAtual.produtividade = tempoLiquidoEmHoras > 0 ? ordemProducaoAtual.quantidade / tempoLiquidoEmHoras : 0;
+            ordemProducaoAtual.concluida = true;
+
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/data/ordens`, currentOrderDocId);
+                await setDoc(docRef, ordemProducaoAtual);
+                showAviso("Ordem de produção finalizada e salva com sucesso!");
+                ordemDetalhesDiv.classList.add('hidden');
+                listasDeOrdensDiv.classList.remove('hidden');
+            } catch (e) {
+                console.error("Erro ao salvar ordem:", e);
+                showAviso("Erro ao salvar ordem. Verifique a conexão.");
+            }
+        }
+        
+        initializeFirebase();
+    </script>
+</body>
+</html>
