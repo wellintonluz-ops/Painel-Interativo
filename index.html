@@ -141,7 +141,8 @@
             messagingSenderId: "516590802933",
             appId: "1:516590802933:web:756d1e76d981e51604b2bc"
         };
-        
+        const appId = "default-app-id";
+
         const showAviso = (message) => { elements.avisoText.textContent = message; elements.avisoModal.classList.remove('hidden'); };
         const formatarTempo = (ms) => {
             if (ms === null || isNaN(ms) || ms < 0) return '00:00:00';
@@ -203,52 +204,126 @@
         };
         
         const updateOrderInFirestore = async () => { if (!currentOrderDocId) return; await setDoc(doc(db, "ordens", currentOrderDocId), ordemProducaoAtual).catch(e => { console.error(e); showAviso("Erro ao salvar o progresso da ordem."); }); };
-        const handleStart = (event) => { const parent = event.target.closest('.subetapa-card'); currentStartContext = { index: parseInt(parent.dataset.index), subIndex: parseInt(parent.dataset.subIndex) }; elements.responsavelModal.classList.remove('hidden'); elements.responsavelInput.value = ''; elements.responsavelInput.focus(); };
+        const handleStart = (event) => {
+            const parent = event.target.closest('.subetapa-card');
+            currentStartContext = { index: parseInt(parent.dataset.index), subIndex: parseInt(parent.dataset.subIndex) };
+            elements.responsavelModal.classList.remove('hidden');
+            elements.responsavelInput.value = '';
+            elements.responsavelInput.focus();
+        };
         const handlePause = async (event) => {
-            const parent = event.target.closest('.subetapa-card'), { index, subIndex } = parent.dataset; const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
-            if (sub.emPausa) { const now = Date.now(), lastPause = sub.pausas[sub.pausas.length-1]; lastPause.fim = now; sub.tempoTotalPausas += now - lastPause.inicio; sub.emPausa = false; }
-            else { currentPauseContext = { index, subIndex }; elements.justificativaModal.classList.remove('hidden'); elements.justificativaInput.value = ''; elements.justificativaInput.focus(); return; }
-            await updateOrderInFirestore(); renderizarOrdem();
+            const parent = event.target.closest('.subetapa-card');
+            const { index, subIndex } = parent.dataset;
+            const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+            if (sub.emPausa) {
+                const now = Date.now();
+                const lastPause = sub.pausas[sub.pausas.length-1];
+                lastPause.fim = now;
+                sub.tempoTotalPausas += now - lastPause.inicio;
+                sub.emPausa = false;
+            } else {
+                currentPauseContext = { index, subIndex };
+                elements.justificativaModal.classList.remove('hidden');
+                elements.justificativaInput.value = '';
+                elements.justificativaInput.focus();
+                return;
+            }
+            await updateOrderInFirestore();
+            renderizarOrdem();
         };
         const handleConclude = async (event) => {
-            const parent = event.target.closest('.subetapa-card'), { index, subIndex } = parent.dataset; const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex], etapa = ordemProducaoAtual.etapas[index];
+            const parent = event.target.closest('.subetapa-card');
+            const { index, subIndex } = parent.dataset;
+            const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+            const etapa = ordemProducaoAtual.etapas[index];
             if (sub.emPausa) return showAviso("Conclua a pausa antes de finalizar.");
-            const now = Timestamp.now(); sub.fim = now; sub.tempoLiquido = now.toMillis() - sub.inicio.toMillis() - sub.tempoTotalPausas; showAviso(`Sub-etapa "${sub.nome}" concluída!`);
+            const now = Timestamp.now();
+            sub.fim = now;
+            sub.tempoLiquido = now.toMillis() - sub.inicio.toMillis() - sub.tempoTotalPausas;
+            showAviso(`Sub-etapa "${sub.nome}" concluída!`);
             if (checkAllSubetapasConcluded(etapa)) {
-                etapa.fim = now; etapa.concluida = true; etapa.tempoLiquido = etapa.subetapas.reduce((acc, s) => acc + s.tempoLiquido, 0); showAviso(`Etapa "${etapa.nome}" concluída!`);
-                if (checkAllEtapasConcluded(ordemProducaoAtual)) { elements.finalizarOrdemBtn.disabled = false; await handleFinalizeMain(true); return; }
+                etapa.fim = now;
+                etapa.concluida = true;
+                etapa.tempoLiquido = etapa.subetapas.reduce((acc, s) => acc + s.tempoLiquido, 0);
+                showAviso(`Etapa "${etapa.nome}" concluída!`);
+                if (checkAllEtapasConcluded(ordemProducaoAtual)) {
+                    elements.finalizarOrdemBtn.disabled = false;
+                    await handleFinalizeMain(true);
+                    return;
+                }
             }
-            await updateOrderInFirestore(); renderizarOrdem();
+            await updateOrderInFirestore();
+            renderizarOrdem();
         };
         const handleFinalizeMain = async (isAutomatic = false) => {
             if (ordemProducaoAtual.concluida || !checkAllEtapasConcluded(ordemProducaoAtual)) return;
-            ordemProducaoAtual.dataFim = Timestamp.now(); ordemProducaoAtual.concluida = true; await updateOrderInFirestore();
-            showAviso(`Ordem finalizada ${isAutomatic ? 'automaticamente' : ''} com sucesso!`); elements.voltarBtn.click();
+            ordemProducaoAtual.dataFim = Timestamp.now();
+            ordemProducaoAtual.concluida = true;
+            await updateOrderInFirestore();
+            showAviso(`Ordem finalizada ${isAutomatic ? 'automaticamente' : ''} com sucesso!`);
+            elements.voltarBtn.click();
         };
         
         const carregarOrdemParaApontamento = (orderId, orderData) => {
-            currentOrderDocId = orderId; ordemProducaoAtual = orderData; switchTab('historicoTab');
-            elements.listasDeOrdensDiv.classList.add('hidden'); elements.ordemDetalhesDiv.classList.remove('hidden');
-            elements.finalizarOrdemBtn.disabled = !checkAllEtapasConcluded(ordemProducaoAtual); renderizarOrdem();
+            currentOrderDocId = orderId;
+            ordemProducaoAtual = orderData;
+            switchTab('historicoTab');
+            elements.listasDeOrdensDiv.classList.add('hidden');
+            elements.ordemDetalhesDiv.classList.remove('hidden');
+            elements.finalizarOrdemBtn.disabled = !checkAllEtapasConcluded(ordemProducaoAtual);
+            renderizarOrdem();
         };
         const fillFormForEditing = (id, data) => {
-            currentEditingProductId = id; elements.codigoProdutoCadastroInput.value = data.codigo; elements.etapasContainer.innerHTML = '';
-            data.etapas.forEach(etapa => { const etapaDiv = createEtapaField(etapa.nome), subContainer = etapaDiv.querySelector('.subetapas-container'); etapa.subetapas.forEach(sub => createSubetapaField(subContainer, sub.nome)); });
-            elements.salvarProdutoBtn.textContent = 'Atualizar Produto'; switchTab('cadastroTab');
+            currentEditingProductId = id;
+            elements.codigoProdutoCadastroInput.value = data.codigo;
+            elements.etapasContainer.innerHTML = '';
+            data.etapas.forEach(etapa => {
+                const etapaDiv = createEtapaField(etapa.nome);
+                const subContainer = etapaDiv.querySelector('.subetapas-container');
+                etapa.subetapas.forEach(sub => createSubetapaField(subContainer, sub.nome));
+            });
+            elements.salvarProdutoBtn.textContent = 'Atualizar Produto';
+            switchTab('cadastroTab');
         };
 
         const setupFirebaseListeners = () => {
-            onSnapshot(query(collection(db, "produtos"), orderBy("codigo")), (snapshot) => {
-                elements.listaProdutosCadastradosUl.innerHTML = ''; elements.produtoApontamentoSelect.innerHTML = '<option value="">Selecione um produto...</option>';
-                snapshot.forEach(doc => { const data = doc.data(), li = document.createElement('li'), option = document.createElement('option'); li.className = 'product-item'; li.textContent = data.codigo; li.addEventListener('click', () => fillFormForEditing(doc.id, data)); elements.listaProdutosCadastradosUl.appendChild(li); option.value = doc.id; option.textContent = data.codigo; elements.produtoApontamentoSelect.appendChild(option); });
-            });
-            onSnapshot(query(collection(db, "ordens"), orderBy("numero", "desc")), (snapshot) => {
-                elements.ordensEmAndamentoUl.innerHTML = ''; elements.ordensConcluidasUl.innerHTML = '';
+            // ---> CORREÇÃO: Removido o caminho complexo das coleções
+            const produtosRef = collection(db, "produtos");
+            onSnapshot(query(produtosRef, orderBy("codigo")), (snapshot) => {
+                elements.listaProdutosCadastradosUl.innerHTML = '';
+                elements.produtoApontamentoSelect.innerHTML = '<option value="">Selecione um produto...</option>';
                 snapshot.forEach(doc => {
-                    const data = doc.data(), li = document.createElement('li'); li.className = 'p-4 bg-gray-100 rounded-lg border border-gray-200';
-                    if (!data.concluida) { li.classList.add('cursor-pointer', 'hover:bg-gray-200'); li.addEventListener('click', () => carregarOrdemParaApontamento(doc.id, data)); }
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.className = 'product-item';
+                    li.textContent = data.codigo;
+                    li.addEventListener('click', () => fillFormForEditing(doc.id, data));
+                    elements.listaProdutosCadastradosUl.appendChild(li);
+
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.codigo;
+                    elements.produtoApontamentoSelect.appendChild(option);
+                });
+            });
+
+            // ---> CORREÇÃO: Removido o caminho complexo das coleções
+            const ordensRef = collection(db, "ordens");
+            onSnapshot(query(ordensRef, orderBy("numero", "desc")), (snapshot) => {
+                elements.ordensEmAndamentoUl.innerHTML = '';
+                elements.ordensConcluidasUl.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.className = 'p-4 bg-gray-100 rounded-lg border border-gray-200';
+                    if (!data.concluida) {
+                        li.classList.add('cursor-pointer', 'hover:bg-gray-200');
+                        li.addEventListener('click', () => carregarOrdemParaApontamento(doc.id, data));
+                    }
+                    // --- CONTEÚDO RESTAURADO ---
                     li.innerHTML = `<p class="font-semibold text-gray-800">Ordem #${data.numero}</p><p class="text-sm text-gray-600"><strong>Produto:</strong> ${data.produto}</p><p class="text-sm text-gray-600"><strong>Quantidade:</strong> ${data.quantidade}</p><p class="text-sm text-gray-600"><strong>Início:</strong> ${data.dataInicio ? data.dataInicio.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Fim:</strong> ${data.dataFim ? data.dataFim.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Status:</strong> ${data.concluida ? '<span class="font-bold text-green-600">Concluída</span>' : '<span class="font-bold text-blue-600">Em Andamento</span>'}</p>`;
-                    if (data.concluida) elements.ordensConcluidasUl.appendChild(li); else elements.ordensEmAndamentoUl.appendChild(li);
+                    if (data.concluida) elements.ordensConcluidasUl.appendChild(li);
+                    else elements.ordensEmAndamentoUl.appendChild(li);
                 });
             });
         };
@@ -261,14 +336,20 @@
             elements.fecharAvisoBtn.addEventListener('click', () => elements.avisoModal.classList.add('hidden'));
             elements.voltarBtn.addEventListener('click', () => { elements.ordemDetalhesDiv.classList.add('hidden'); elements.listasDeOrdensDiv.classList.remove('hidden'); currentOrderDocId = null; ordemProducaoAtual = {}; });
             elements.finalizarOrdemBtn.addEventListener('click', () => handleFinalizeMain(false));
-            elements.cancelarJustificativaBtn.addEventListener('click', () => elements.justificativaModal.classList.add('hidden'));
-            elements.cancelarResponsavelBtn.addEventListener('click', () => elements.responsavelModal.classList.add('hidden'));
+            elements.cancelarJustificativaBtn.addEventListener('click', () => { elements.justificativaModal.classList.add('hidden'); });
+            elements.cancelarResponsavelBtn.addEventListener('click', () => { elements.responsavelModal.classList.add('hidden'); });
+            
             elements.salvarProdutoBtn.addEventListener('click', async () => {
                 const codigo = elements.codigoProdutoCadastroInput.value.trim(); if (!codigo) return showAviso("O código do produto é obrigatório."); const etapas = []; let hasError = false;
                 elements.etapasContainer.querySelectorAll('.etapa').forEach(el => { const nomeEtapa = el.querySelector('.etapa-nome').value.trim(); if (!nomeEtapa) hasError = true; const subetapas = []; el.querySelectorAll('.subetapa-nome').forEach(subEl => { const nomeSub = subEl.value.trim(); if (!nomeSub) hasError = true; subetapas.push({ nome: nomeSub }); }); etapas.push({ nome: nomeEtapa, subetapas }); });
                 if (hasError) return showAviso("Todos os nomes de etapas e sub-etapas são obrigatórios.");
-                try { if (currentEditingProductId) { await setDoc(doc(db, "produtos", currentEditingProductId), { codigo, etapas }); showAviso("Produto atualizado!"); } else { await addDoc(collection(db, "produtos"), { codigo, etapas }); showAviso("Produto salvo!"); } elements.codigoProdutoCadastroInput.value = ''; elements.etapasContainer.innerHTML = ''; elements.salvarProdutoBtn.textContent = 'Salvar Produto'; currentEditingProductId = null; } catch(e) { console.error(e); showAviso("Erro ao salvar produto."); }
+                try {
+                    if (currentEditingProductId) { await setDoc(doc(db, "produtos", currentEditingProductId), { codigo, etapas }); showAviso("Produto atualizado!"); }
+                    else { await addDoc(collection(db, "produtos"), { codigo, etapas }); showAviso("Produto salvo!"); }
+                    elements.codigoProdutoCadastroInput.value = ''; elements.etapasContainer.innerHTML = ''; elements.salvarProdutoBtn.textContent = 'Salvar Produto'; currentEditingProductId = null;
+                } catch(e) { console.error(e); showAviso("Erro ao salvar produto."); }
             });
+
             elements.abrirOrdemBtn.addEventListener('click', async () => {
                 const numero = elements.numeroOrdemInput.value.trim(), produtoId = elements.produtoApontamentoSelect.value, quantidade = parseInt(elements.quantidadeApontamentoInput.value, 10);
                 if (!numero || !produtoId || isNaN(quantidade) || quantidade <= 0) return showAviso("Preencha todos os campos.");
@@ -280,17 +361,25 @@
                     showAviso(`Ordem #${numero} aberta!`); elements.numeroOrdemInput.value = ''; elements.produtoApontamentoSelect.value = ''; elements.quantidadeApontamentoInput.value = ''; switchTab('historicoTab');
                 } catch (e) { console.error(e); showAviso("Erro ao abrir ordem."); }
             });
+
             elements.salvarResponsavelBtn.addEventListener('click', async () => {
                 const responsavel = elements.responsavelInput.value.trim(); if (!responsavel || !currentStartContext) return;
-                const { index, subIndex } = currentStartContext; const now = Timestamp.now(); ordemProducaoAtual.etapas[index].subetapas[subIndex].inicio = now; ordemProducaoAtual.etapas[index].subetapas[subIndex].responsavel = responsavel;
-                if (!ordemProducaoAtual.etapas[index].inicio) { ordemProducaoAtual.etapas[index].inicio = now; ordemProducaoAtual.etapas[index].responsavel = responsavel; }
+                const { index, subIndex } = currentStartContext; const now = Timestamp.now();
+                const subetapa = ordemProducaoAtual.etapas[index].subetapas[subIndex]; subetapa.inicio = now; subetapa.responsavel = responsavel;
+                const etapa = ordemProducaoAtual.etapas[index]; if (!etapa.inicio) { etapa.inicio = now; etapa.responsavel = responsavel; }
                 if (!ordemProducaoAtual.dataInicio) ordemProducaoAtual.dataInicio = now;
                 elements.responsavelModal.classList.add('hidden'); await updateOrderInFirestore(); renderizarOrdem();
             });
+
             elements.salvarJustificativaBtn.addEventListener('click', async () => {
                 const justificativa = elements.justificativaInput.value.trim(); if (!justificativa || !currentPauseContext) return;
-                const { index, subIndex } = currentPauseContext; const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex]; sub.pausas.push({ justificativa, inicio: Date.now(), fim: null }); sub.emPausa = true;
-                elements.justificativaModal.classList.add('hidden'); await updateOrderInFirestore(); renderizarOrdem();
+                const { index, subIndex } = currentPauseContext;
+                const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+                sub.pausas.push({ justificativa, inicio: Date.now(), fim: null });
+                sub.emPausa = true;
+                elements.justificativaModal.classList.add('hidden');
+                await updateOrderInFirestore();
+                renderizarOrdem();
             });
         };
         
