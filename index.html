@@ -92,12 +92,10 @@
     </div>
 
     <script type="module">
-        // Importações do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, Timestamp, where, doc, getDoc, setDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Mapeamento centralizado de Elementos do DOM
         const elements = {
             cadastroTabBtn: document.getElementById('cadastroTabBtn'),
             apontamentoTabBtn: document.getElementById('apontamentoTabBtn'),
@@ -133,15 +131,8 @@
             fecharAvisoBtn: document.getElementById('fecharAvisoBtn'),
         };
 
-        // Variáveis de estado
-        let db, auth, userId;
-        let ordemProducaoAtual = {};
-        let currentPauseContext = null;
-        let currentStartContext = null;
-        let currentEditingProductId = null;
-        let currentOrderDocId = null;
+        let db, auth, userId, ordemProducaoAtual = {}, currentPauseContext = null, currentStartContext = null, currentEditingProductId = null, currentOrderDocId = null;
 
-        // Configuração Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBDb1E_wHtmISvNG31RhlmP979890X7nxY",
             authDomain: "apontamentoproducao-f141e.firebaseapp.com",
@@ -150,9 +141,7 @@
             messagingSenderId: "516590802933",
             appId: "1:516590802933:web:756d1e76d981e51604b2bc"
         };
-        const appId = "default-app-id";
-
-        // Funções de utilidade
+        
         const showAviso = (message) => { elements.avisoText.textContent = message; elements.avisoModal.classList.remove('hidden'); };
         const formatarTempo = (ms) => {
             if (ms === null || isNaN(ms) || ms < 0) return '00:00:00';
@@ -193,7 +182,6 @@
                 const etapaDiv = document.createElement('div');
                 etapaDiv.className = `etapa-card p-4 border rounded-lg bg-gray-50 space-y-3 ${etapa.concluida ? 'etapa-concluida' : ''}`;
                 etapaDiv.dataset.index = index;
-                // --- CONTEÚDO RESTAURADO ---
                 etapaDiv.innerHTML = `<div class="flex justify-between items-center"><h4 class="text-lg font-bold text-gray-800">${etapa.nome}</h4><div class="text-sm text-right"><p class="responsavel-etapa-display text-gray-600">Responsável: ${etapa.responsavel || '--'}</p><p class="text-gray-600">Tempo Líquido: <span class="font-semibold">${formatarTempo(etapa.tempoLiquido)}</span></p></div></div><div class="subetapas-apontamento-container pl-4 space-y-2 border-l-2 border-gray-200"></div>`;
                 const subetapasContainer = etapaDiv.querySelector('.subetapas-apontamento-container');
                 let prevSubetapaConcluida = true;
@@ -202,7 +190,6 @@
                     subetapaDiv.className = `subetapa-card p-3 bg-white rounded-md shadow-sm border ${subetapa.fim ? 'etapa-concluida' : ''}`;
                     subetapaDiv.dataset.index = index; subetapaDiv.dataset.subIndex = subIndex;
                     const isStarted = subetapa.inicio !== null, isFinished = subetapa.fim !== null, isPaused = subetapa.emPausa, canStart = !isStarted && prevSubetapaConcluida && prevEtapaConcluida;
-                    // --- CONTEÚDO RESTAURADO ---
                     subetapaDiv.innerHTML = `<div class="flex justify-between items-center mb-2"><p class="font-semibold">${subetapa.nome}</p><p class="responsavel-subetapa-display text-sm text-gray-500">Responsável: ${subetapa.responsavel || '--'}</p></div><div class="text-xs text-gray-500 mb-3"><p>Tempo Líquido: <span class="font-mono">${formatarTempo(subetapa.tempoLiquido)}</span></p></div><div class="flex space-x-2"><button class="iniciar-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-2 rounded-md text-sm disabled:opacity-50" ${!canStart ? 'disabled' : ''}>Iniciar</button><button class="pausar-btn flex-1 ${isPaused ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-500 hover:bg-gray-600'} text-white font-semibold py-1 px-2 rounded-md text-sm disabled:opacity-50" ${!isStarted || isFinished ? 'disabled' : ''}>${isPaused ? 'Continuar' : 'Pausar'}</button><button class="concluir-btn flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1 px-2 rounded-md text-sm disabled:opacity-50" ${!isStarted || isFinished || isPaused ? 'disabled' : ''}>Concluir</button></div>`;
                     subetapasContainer.appendChild(subetapaDiv);
                     prevSubetapaConcluida = isFinished;
@@ -260,7 +247,6 @@
                 snapshot.forEach(doc => {
                     const data = doc.data(), li = document.createElement('li'); li.className = 'p-4 bg-gray-100 rounded-lg border border-gray-200';
                     if (!data.concluida) { li.classList.add('cursor-pointer', 'hover:bg-gray-200'); li.addEventListener('click', () => carregarOrdemParaApontamento(doc.id, data)); }
-                    // --- CONTEÚDO RESTAURADO ---
                     li.innerHTML = `<p class="font-semibold text-gray-800">Ordem #${data.numero}</p><p class="text-sm text-gray-600"><strong>Produto:</strong> ${data.produto}</p><p class="text-sm text-gray-600"><strong>Quantidade:</strong> ${data.quantidade}</p><p class="text-sm text-gray-600"><strong>Início:</strong> ${data.dataInicio ? data.dataInicio.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Fim:</strong> ${data.dataFim ? data.dataFim.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Status:</strong> ${data.concluida ? '<span class="font-bold text-green-600">Concluída</span>' : '<span class="font-bold text-blue-600">Em Andamento</span>'}</p>`;
                     if (data.concluida) elements.ordensConcluidasUl.appendChild(li); else elements.ordensEmAndamentoUl.appendChild(li);
                 });
