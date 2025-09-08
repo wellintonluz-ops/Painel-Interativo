@@ -141,8 +141,7 @@
             messagingSenderId: "516590802933",
             appId: "1:516590802933:web:756d1e76d981e51604b2bc"
         };
-        const appId = "default-app-id";
-
+        
         const showAviso = (message) => { elements.avisoText.textContent = message; elements.avisoModal.classList.remove('hidden'); };
         const formatarTempo = (ms) => {
             if (ms === null || isNaN(ms) || ms < 0) return '00:00:00';
@@ -212,9 +211,7 @@
             elements.responsavelInput.focus();
         };
         const handlePause = async (event) => {
-            const parent = event.target.closest('.subetapa-card');
-            const { index, subIndex } = parent.dataset;
-            const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+            const parent = event.target.closest('.subetapa-card'), { index, subIndex } = parent.dataset; const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
             if (sub.emPausa) {
                 const now = Date.now();
                 const lastPause = sub.pausas[sub.pausas.length-1];
@@ -232,10 +229,7 @@
             renderizarOrdem();
         };
         const handleConclude = async (event) => {
-            const parent = event.target.closest('.subetapa-card');
-            const { index, subIndex } = parent.dataset;
-            const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
-            const etapa = ordemProducaoAtual.etapas[index];
+            const parent = event.target.closest('.subetapa-card'), { index, subIndex } = parent.dataset; const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex], etapa = ordemProducaoAtual.etapas[index];
             if (sub.emPausa) return showAviso("Conclua a pausa antes de finalizar.");
             const now = Timestamp.now();
             sub.fim = now;
@@ -287,9 +281,7 @@
         };
 
         const setupFirebaseListeners = () => {
-            // ---> CORREÇÃO: Removido o caminho complexo das coleções
-            const produtosRef = collection(db, "produtos");
-            onSnapshot(query(produtosRef, orderBy("codigo")), (snapshot) => {
+            onSnapshot(query(collection(db, "produtos"), orderBy("codigo")), (snapshot) => {
                 elements.listaProdutosCadastradosUl.innerHTML = '';
                 elements.produtoApontamentoSelect.innerHTML = '<option value="">Selecione um produto...</option>';
                 snapshot.forEach(doc => {
@@ -306,10 +298,7 @@
                     elements.produtoApontamentoSelect.appendChild(option);
                 });
             });
-
-            // ---> CORREÇÃO: Removido o caminho complexo das coleções
-            const ordensRef = collection(db, "ordens");
-            onSnapshot(query(ordensRef, orderBy("numero", "desc")), (snapshot) => {
+            onSnapshot(query(collection(db, "ordens"), orderBy("numero", "desc")), (snapshot) => {
                 elements.ordensEmAndamentoUl.innerHTML = '';
                 elements.ordensConcluidasUl.innerHTML = '';
                 snapshot.forEach(doc => {
@@ -320,7 +309,6 @@
                         li.classList.add('cursor-pointer', 'hover:bg-gray-200');
                         li.addEventListener('click', () => carregarOrdemParaApontamento(doc.id, data));
                     }
-                    // --- CONTEÚDO RESTAURADO ---
                     li.innerHTML = `<p class="font-semibold text-gray-800">Ordem #${data.numero}</p><p class="text-sm text-gray-600"><strong>Produto:</strong> ${data.produto}</p><p class="text-sm text-gray-600"><strong>Quantidade:</strong> ${data.quantidade}</p><p class="text-sm text-gray-600"><strong>Início:</strong> ${data.dataInicio ? data.dataInicio.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Fim:</strong> ${data.dataFim ? data.dataFim.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Status:</strong> ${data.concluida ? '<span class="font-bold text-green-600">Concluída</span>' : '<span class="font-bold text-blue-600">Em Andamento</span>'}</p>`;
                     if (data.concluida) elements.ordensConcluidasUl.appendChild(li);
                     else elements.ordensEmAndamentoUl.appendChild(li);
@@ -332,47 +320,95 @@
             elements.cadastroTabBtn.addEventListener('click', () => switchTab('cadastroTab'));
             elements.apontamentoTabBtn.addEventListener('click', () => switchTab('apontamentoTab'));
             elements.historicoTabBtn.addEventListener('click', () => switchTab('historicoTab'));
-            elements.addEtapaBtn.addEventListener('click', () => createEtapaField());
+            elements.addEtapaBtn.addEventListener('click', createEtapaField);
             elements.fecharAvisoBtn.addEventListener('click', () => elements.avisoModal.classList.add('hidden'));
-            elements.voltarBtn.addEventListener('click', () => { elements.ordemDetalhesDiv.classList.add('hidden'); elements.listasDeOrdensDiv.classList.remove('hidden'); currentOrderDocId = null; ordemProducaoAtual = {}; });
+            elements.voltarBtn.addEventListener('click', () => {
+                elements.ordemDetalhesDiv.classList.add('hidden');
+                elements.listasDeOrdensDiv.classList.remove('hidden');
+                currentOrderDocId = null;
+                ordemProducaoAtual = {};
+            });
             elements.finalizarOrdemBtn.addEventListener('click', () => handleFinalizeMain(false));
-            elements.cancelarJustificativaBtn.addEventListener('click', () => { elements.justificativaModal.classList.add('hidden'); });
-            elements.cancelarResponsavelBtn.addEventListener('click', () => { elements.responsavelModal.classList.add('hidden'); });
-            
+            elements.cancelarJustificativaBtn.addEventListener('click', () => elements.justificativaModal.classList.add('hidden'));
+            elements.cancelarResponsavelBtn.addEventListener('click', () => elements.responsavelModal.classList.add('hidden'));
             elements.salvarProdutoBtn.addEventListener('click', async () => {
-                const codigo = elements.codigoProdutoCadastroInput.value.trim(); if (!codigo) return showAviso("O código do produto é obrigatório."); const etapas = []; let hasError = false;
-                elements.etapasContainer.querySelectorAll('.etapa').forEach(el => { const nomeEtapa = el.querySelector('.etapa-nome').value.trim(); if (!nomeEtapa) hasError = true; const subetapas = []; el.querySelectorAll('.subetapa-nome').forEach(subEl => { const nomeSub = subEl.value.trim(); if (!nomeSub) hasError = true; subetapas.push({ nome: nomeSub }); }); etapas.push({ nome: nomeEtapa, subetapas }); });
+                const codigo = elements.codigoProdutoCadastroInput.value.trim();
+                if (!codigo) return showAviso("O código do produto é obrigatório.");
+                const etapas = [];
+                let hasError = false;
+                elements.etapasContainer.querySelectorAll('.etapa').forEach(el => {
+                    const nomeEtapa = el.querySelector('.etapa-nome').value.trim();
+                    if (!nomeEtapa) hasError = true;
+                    const subetapas = [];
+                    el.querySelectorAll('.subetapa-nome').forEach(subEl => {
+                        const nomeSub = subEl.value.trim();
+                        if (!nomeSub) hasError = true;
+                        subetapas.push({ nome: nomeSub });
+                    });
+                    etapas.push({ nome: nomeEtapa, subetapas: subetapas });
+                });
                 if (hasError) return showAviso("Todos os nomes de etapas e sub-etapas são obrigatórios.");
                 try {
-                    if (currentEditingProductId) { await setDoc(doc(db, "produtos", currentEditingProductId), { codigo, etapas }); showAviso("Produto atualizado!"); }
-                    else { await addDoc(collection(db, "produtos"), { codigo, etapas }); showAviso("Produto salvo!"); }
-                    elements.codigoProdutoCadastroInput.value = ''; elements.etapasContainer.innerHTML = ''; elements.salvarProdutoBtn.textContent = 'Salvar Produto'; currentEditingProductId = null;
-                } catch(e) { console.error(e); showAviso("Erro ao salvar produto."); }
+                    const produtoData = { codigo, etapas };
+                    if (currentEditingProductId) {
+                        await setDoc(doc(db, "produtos", currentEditingProductId), produtoData);
+                        showAviso("Produto atualizado!");
+                    } else {
+                        await addDoc(collection(db, "produtos"), produtoData);
+                        showAviso("Produto salvo!");
+                    }
+                    elements.codigoProdutoCadastroInput.value = '';
+                    elements.etapasContainer.innerHTML = '';
+                    elements.salvarProdutoBtn.textContent = 'Salvar Produto';
+                    currentEditingProductId = null;
+                } catch(e) {
+                    console.error(e);
+                    showAviso("Erro ao salvar produto.");
+                }
             });
-
             elements.abrirOrdemBtn.addEventListener('click', async () => {
-                const numero = elements.numeroOrdemInput.value.trim(), produtoId = elements.produtoApontamentoSelect.value, quantidade = parseInt(elements.quantidadeApontamentoInput.value, 10);
+                const numero = elements.numeroOrdemInput.value.trim();
+                const produtoId = elements.produtoApontamentoSelect.value;
+                const quantidade = parseInt(elements.quantidadeApontamentoInput.value, 10);
                 if (!numero || !produtoId || isNaN(quantidade) || quantidade <= 0) return showAviso("Preencha todos os campos.");
                 try {
                     if (!(await getDocs(query(collection(db, "ordens"), where("numero", "==", numero)))).empty) return showAviso(`A ordem #${numero} já existe.`);
-                    const produtoDoc = await getDoc(doc(db, "produtos", produtoId)); if (!produtoDoc.exists()) return showAviso("Produto não encontrado.");
-                    const pData = produtoDoc.data(); const etapas = pData.etapas.map(e => ({...e, inicio:null,fim:null,responsavel:null,concluida:false,tempoLiquido:0,subetapas:e.subetapas.map(s=>({...s,inicio:null,fim:null,responsavel:null,emPausa:false,pausas:[],tempoTotalPausas:0,tempoLiquido:0}))}));
+                    const produtoDoc = await getDoc(doc(db, "produtos", produtoId));
+                    if (!produtoDoc.exists()) return showAviso("Produto não encontrado.");
+                    const pData = produtoDoc.data();
+                    const etapas = pData.etapas.map(e => ({...e, inicio:null, fim:null, responsavel:null, concluida:false, tempoLiquido:0, subetapas:e.subetapas.map(s=>({...s, inicio:null, fim:null, responsavel:null, emPausa:false, pausas:[], tempoTotalPausas:0, tempoLiquido:0}))}));
                     await addDoc(collection(db, "ordens"), { numero, produto: pData.codigo, produtoId, quantidade, dataInicio: null, dataFim: null, concluida: false, etapas });
-                    showAviso(`Ordem #${numero} aberta!`); elements.numeroOrdemInput.value = ''; elements.produtoApontamentoSelect.value = ''; elements.quantidadeApontamentoInput.value = ''; switchTab('historicoTab');
-                } catch (e) { console.error(e); showAviso("Erro ao abrir ordem."); }
+                    showAviso(`Ordem #${numero} aberta!`);
+                    elements.numeroOrdemInput.value = '';
+                    elements.produtoApontamentoSelect.value = '';
+                    elements.quantidadeApontamentoInput.value = '';
+                    switchTab('historicoTab');
+                } catch (e) {
+                    console.error(e);
+                    showAviso("Erro ao abrir ordem.");
+                }
             });
-
             elements.salvarResponsavelBtn.addEventListener('click', async () => {
-                const responsavel = elements.responsavelInput.value.trim(); if (!responsavel || !currentStartContext) return;
-                const { index, subIndex } = currentStartContext; const now = Timestamp.now();
-                const subetapa = ordemProducaoAtual.etapas[index].subetapas[subIndex]; subetapa.inicio = now; subetapa.responsavel = responsavel;
-                const etapa = ordemProducaoAtual.etapas[index]; if (!etapa.inicio) { etapa.inicio = now; etapa.responsavel = responsavel; }
+                const responsavel = elements.responsavelInput.value.trim();
+                if (!responsavel || !currentStartContext) return;
+                const { index, subIndex } = currentStartContext;
+                const now = Timestamp.now();
+                const subetapa = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+                subetapa.inicio = now;
+                subetapa.responsavel = responsavel;
+                const etapa = ordemProducaoAtual.etapas[index];
+                if (!etapa.inicio) {
+                    etapa.inicio = now;
+                    etapa.responsavel = responsavel;
+                }
                 if (!ordemProducaoAtual.dataInicio) ordemProducaoAtual.dataInicio = now;
-                elements.responsavelModal.classList.add('hidden'); await updateOrderInFirestore(); renderizarOrdem();
+                elements.responsavelModal.classList.add('hidden');
+                await updateOrderInFirestore();
+                renderizarOrdem();
             });
-
             elements.salvarJustificativaBtn.addEventListener('click', async () => {
-                const justificativa = elements.justificativaInput.value.trim(); if (!justificativa || !currentPauseContext) return;
+                const justificativa = elements.justificativaInput.value.trim();
+                if (!justificativa || !currentPauseContext) return;
                 const { index, subIndex } = currentPauseContext;
                 const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
                 sub.pausas.push({ justificativa, inicio: Date.now(), fim: null });
@@ -386,9 +422,22 @@
         const main = () => {
             bindEventListeners();
             try {
-                const app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app);
-                onAuthStateChanged(auth, (user) => { if (user) { userId = user.uid; elements.userIdDisplay.textContent = userId.substring(0, 8); setupFirebaseListeners(); } else { signInAnonymously(auth); } });
-            } catch (error) { console.error("Erro Crítico ao Inicializar Firebase:", error); showAviso("Falha na conexão com o sistema."); }
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        elements.userIdDisplay.textContent = userId.substring(0, 8);
+                        setupFirebaseListeners();
+                    } else {
+                        signInAnonymously(auth);
+                    }
+                });
+            } catch (error) {
+                console.error("Erro Crítico ao Inicializar Firebase:", error);
+                showAviso("Falha na conexão com o sistema.");
+            }
         };
 
         main();
