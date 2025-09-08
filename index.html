@@ -160,4 +160,317 @@
         const createEtapaField = (nome = '') => {
             const etapaDiv = document.createElement('div');
             etapaDiv.className = 'etapa p-4 border rounded-lg bg-gray-50 space-y-2';
-            etapaDiv.innerHTML = `<div><label class="block text-sm font-medium text-gray-700">Nome da Etapa</label><input type="text" class="etapa-nome mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: Montagem" value="${nome}"></div><div class="subetapas-container pl-4 space-y-2"></div><div class="flex space-x-2"><button type="button" class="add-subetapa-btn flex-1 bg-blue-400 hover:bg-blue-500 text-white font-semibold py-1 px-2 rounded-md text-sm shadow-sm">Adicionar Sub-etapa</button><button type="button" class="remove-etapa-btn flex-1 bg-red-400 hover:bg-
+            etapaDiv.innerHTML = `<div><label class="block text-sm font-medium text-gray-700">Nome da Etapa</label><input type="text" class="etapa-nome mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: Montagem" value="${nome}"></div><div class="subetapas-container pl-4 space-y-2"></div><div class="flex space-x-2"><button type="button" class="add-subetapa-btn flex-1 bg-blue-400 hover:bg-blue-500 text-white font-semibold py-1 px-2 rounded-md text-sm shadow-sm">Adicionar Sub-etapa</button><button type="button" class="remove-etapa-btn flex-1 bg-red-400 hover:bg-red-500 text-white font-semibold py-1 px-2 rounded-md text-sm shadow-sm">Remover Etapa</button></div>`;
+            elements.etapasContainer.appendChild(etapaDiv);
+            etapaDiv.querySelector('.add-subetapa-btn').addEventListener('click', () => createSubetapaField(etapaDiv.querySelector('.subetapas-container')));
+            etapaDiv.querySelector('.remove-etapa-btn').addEventListener('click', () => etapaDiv.remove());
+        };
+        const createSubetapaField = (container, nome = '') => {
+            const subetapaDiv = document.createElement('div');
+            subetapaDiv.className = 'subetapa flex items-center space-x-2';
+            subetapaDiv.innerHTML = `<input type="text" class="subetapa-nome flex-1 block w-full rounded-md border-gray-300 shadow-sm p-2 text-sm" placeholder="Nome da Sub-etapa" value="${nome}"><button type="button" class="remove-subetapa-btn bg-red-400 hover:bg-red-500 text-white font-semibold py-1 px-2 rounded-md text-sm shadow-sm">Remover</button>`;
+            container.appendChild(subetapaDiv);
+            subetapaDiv.querySelector('.remove-subetapa-btn').addEventListener('click', () => subetapaDiv.remove());
+        };
+        
+        const renderizarOrdem = () => {
+            elements.etapasApontamentoDiv.innerHTML = '';
+            if (!ordemProducaoAtual || !ordemProducaoAtual.etapas) return;
+            elements.ordemNumeroDisplay.textContent = ordemProducaoAtual.numero;
+            let prevEtapaConcluida = true;
+            ordemProducaoAtual.etapas.forEach((etapa, index) => {
+                const etapaDiv = document.createElement('div');
+                etapaDiv.className = `etapa-card p-4 border rounded-lg bg-gray-50 space-y-3 ${etapa.concluida ? 'etapa-concluida' : ''}`;
+                etapaDiv.dataset.index = index;
+                etapaDiv.innerHTML = `<div class="flex justify-between items-center"><h4 class="text-lg font-bold text-gray-800">${etapa.nome}</h4><div class="text-sm text-right"><p class="responsavel-etapa-display text-gray-600">Responsável: ${etapa.responsavel || '--'}</p><p class="text-gray-600">Tempo Líquido: <span class="font-semibold">${formatarTempo(etapa.tempoLiquido)}</span></p></div></div><div class="subetapas-apontamento-container pl-4 space-y-2 border-l-2 border-gray-200"></div>`;
+                const subetapasContainer = etapaDiv.querySelector('.subetapas-apontamento-container');
+                let prevSubetapaConcluida = true;
+                etapa.subetapas.forEach((subetapa, subIndex) => {
+                    const subetapaDiv = document.createElement('div');
+                    subetapaDiv.className = `subetapa-card p-3 bg-white rounded-md shadow-sm border ${subetapa.fim ? 'etapa-concluida' : ''}`;
+                    subetapaDiv.dataset.index = index; subetapaDiv.dataset.subIndex = subIndex;
+                    const isStarted = subetapa.inicio !== null, isFinished = subetapa.fim !== null, isPaused = subetapa.emPausa, canStart = !isStarted && prevSubetapaConcluida && prevEtapaConcluida;
+                    subetapaDiv.innerHTML = `<div class="flex justify-between items-center mb-2"><p class="font-semibold">${subetapa.nome}</p><p class="responsavel-subetapa-display text-sm text-gray-500">Responsável: ${subetapa.responsavel || '--'}</p></div><div class="text-xs text-gray-500 mb-3"><p>Tempo Líquido: <span class="font-mono">${formatarTempo(subetapa.tempoLiquido)}</span></p></div><div class="flex space-x-2"><button class="iniciar-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-2 rounded-md text-sm disabled:opacity-50" ${!canStart ? 'disabled' : ''}>Iniciar</button><button class="pausar-btn flex-1 ${isPaused ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-500 hover:bg-gray-600'} text-white font-semibold py-1 px-2 rounded-md text-sm disabled:opacity-50" ${!isStarted || isFinished ? 'disabled' : ''}>${isPaused ? 'Continuar' : 'Pausar'}</button><button class="concluir-btn flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1 px-2 rounded-md text-sm disabled:opacity-50" ${!isStarted || isFinished || isPaused ? 'disabled' : ''}>Concluir</button></div>`;
+                    subetapasContainer.appendChild(subetapaDiv);
+                    prevSubetapaConcluida = isFinished;
+                });
+                elements.etapasApontamentoDiv.appendChild(etapaDiv);
+                prevEtapaConcluida = etapa.concluida;
+            });
+            elements.etapasApontamentoDiv.querySelectorAll('.iniciar-btn').forEach(btn => btn.addEventListener('click', handleStart));
+            elements.etapasApontamentoDiv.querySelectorAll('.pausar-btn').addEventListener('click', handlePause));
+            elements.etapasApontamentoDiv.querySelectorAll('.concluir-btn').addEventListener('click', handleConclude));
+        };
+        
+        const updateOrderInFirestore = async () => {
+            if (!currentOrderDocId) return;
+            await setDoc(doc(db, "ordens", currentOrderDocId), ordemProducaoAtual).catch(e => {
+                console.error("Erro ao atualizar ordem:", e);
+                showAviso("Erro ao salvar o progresso da ordem.");
+            });
+        };
+        const handleStart = (event) => {
+            const parent = event.target.closest('.subetapa-card');
+            currentStartContext = { index: parseInt(parent.dataset.index), subIndex: parseInt(parent.dataset.subIndex) };
+            elements.responsavelModal.classList.remove('hidden');
+            elements.responsavelInput.value = '';
+            elements.responsavelInput.focus();
+        };
+        const handlePause = async (event) => {
+            const parent = event.target.closest('.subetapa-card');
+            const { index, subIndex } = parent.dataset;
+            const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+            if (sub.emPausa) {
+                const now = Date.now();
+                const lastPause = sub.pausas[sub.pausas.length - 1];
+                lastPause.fim = now;
+                sub.tempoTotalPausas += now - lastPause.inicio;
+                sub.emPausa = false;
+            } else {
+                currentPauseContext = { index, subIndex };
+                elements.justificativaModal.classList.remove('hidden');
+                elements.justificativaInput.value = '';
+                elements.justificativaInput.focus();
+                return;
+            }
+            await updateOrderInFirestore();
+            renderizarOrdem();
+        };
+        const handleConclude = async (event) => {
+            const parent = event.target.closest('.subetapa-card');
+            const { index, subIndex } = parent.dataset;
+            const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+            const etapa = ordemProducaoAtual.etapas[index];
+            if (sub.emPausa) return showAviso("Conclua a pausa antes de finalizar.");
+            const now = Timestamp.now();
+            sub.fim = now;
+            sub.tempoLiquido = now.toMillis() - sub.inicio.toMillis() - sub.tempoTotalPausas;
+            showAviso(`Sub-etapa "${sub.nome}" concluída!`);
+            if (checkAllSubetapasConcluded(etapa)) {
+                etapa.fim = now;
+                etapa.concluida = true;
+                etapa.tempoLiquido = etapa.subetapas.reduce((acc, s) => acc + s.tempoLiquido, 0);
+                showAviso(`Etapa "${etapa.nome}" concluída!`);
+                if (checkAllEtapasConcluded(ordemProducaoAtual)) {
+                    elements.finalizarOrdemBtn.disabled = false;
+                    await handleFinalizeMain(true);
+                    return;
+                }
+            }
+            await updateOrderInFirestore();
+            renderizarOrdem();
+        };
+        const handleFinalizeMain = async (isAutomatic = false) => {
+            if (ordemProducaoAtual.concluida || !checkAllEtapasConcluded(ordemProducaoAtual)) return;
+            ordemProducaoAtual.dataFim = Timestamp.now();
+            ordemProducaoAtual.concluida = true;
+            await updateOrderInFirestore();
+            showAviso(`Ordem finalizada ${isAutomatic ? 'automaticamente' : ''} com sucesso!`);
+            elements.voltarBtn.click();
+        };
+        
+        const carregarOrdemParaApontamento = (orderId, orderData) => {
+            currentOrderDocId = orderId;
+            ordemProducaoAtual = orderData;
+            switchTab('historicoTab');
+            elements.listasDeOrdensDiv.classList.add('hidden');
+            elements.ordemDetalhesDiv.classList.remove('hidden');
+            elements.finalizarOrdemBtn.disabled = !checkAllEtapasConcluded(ordemProducaoAtual);
+            renderizarOrdem();
+        };
+        const fillFormForEditing = (id, data) => {
+            currentEditingProductId = id;
+            elements.codigoProdutoCadastroInput.value = data.codigo;
+            elements.etapasContainer.innerHTML = '';
+            data.etapas.forEach(etapa => {
+                const etapaDiv = createEtapaField(etapa.nome);
+                const subContainer = etapaDiv.querySelector('.subetapas-container');
+                etapa.subetapas.forEach(sub => createSubetapaField(subContainer, sub.nome));
+            });
+            elements.salvarProdutoBtn.textContent = 'Atualizar Produto';
+            switchTab('cadastroTab');
+        };
+
+        const setupFirebaseListeners = () => {
+            onSnapshot(query(collection(db, "produtos"), orderBy("codigo")), (snapshot) => {
+                elements.listaProdutosCadastradosUl.innerHTML = '';
+                elements.produtoApontamentoSelect.innerHTML = '<option value="">Selecione um produto...</option>';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.className = 'product-item';
+                    li.textContent = data.codigo;
+                    li.addEventListener('click', () => fillFormForEditing(doc.id, data));
+                    elements.listaProdutosCadastradosUl.appendChild(li);
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.codigo;
+                    elements.produtoApontamentoSelect.appendChild(option);
+                });
+            });
+            onSnapshot(query(collection(db, "ordens"), orderBy("numero", "desc")), (snapshot) => {
+                elements.ordensEmAndamentoUl.innerHTML = '';
+                elements.ordensConcluidasUl.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.className = 'p-4 bg-gray-100 rounded-lg border border-gray-200';
+                    if (!data.concluida) {
+                        li.classList.add('cursor-pointer', 'hover:bg-gray-200');
+                        li.addEventListener('click', () => carregarOrdemParaApontamento(doc.id, data));
+                    }
+                    li.innerHTML = `<p class="font-semibold text-gray-800">Ordem #${data.numero}</p><p class="text-sm text-gray-600"><strong>Produto:</strong> ${data.produto}</p><p class="text-sm text-gray-600"><strong>Quantidade:</strong> ${data.quantidade}</p><p class="text-sm text-gray-600"><strong>Início:</strong> ${data.dataInicio ? data.dataInicio.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Fim:</strong> ${data.dataFim ? data.dataFim.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Status:</strong> ${data.concluida ? '<span class="font-bold text-green-600">Concluída</span>' : '<span class="font-bold text-blue-600">Em Andamento</span>'}</p>`;
+                    if (data.concluida) elements.ordensConcluidasUl.appendChild(li);
+                    else elements.ordensEmAndamentoUl.appendChild(li);
+                });
+            });
+        };
+        
+        const bindEventListeners = () => {
+            elements.cadastroTabBtn.addEventListener('click', () => switchTab('cadastroTab'));
+            elements.apontamentoTabBtn.addEventListener('click', () => switchTab('apontamentoTab'));
+            elements.historicoTabBtn.addEventListener('click', () => switchTab('historicoTab'));
+            elements.addEtapaBtn.addEventListener('click', createEtapaField);
+            elements.fecharAvisoBtn.addEventListener('click', () => elements.avisoModal.classList.add('hidden'));
+            elements.voltarBtn.addEventListener('click', () => {
+                elements.ordemDetalhesDiv.classList.add('hidden');
+                elements.listasDeOrdensDiv.classList.remove('hidden');
+                currentOrderDocId = null;
+                ordemProducaoAtual = {};
+            });
+            elements.finalizarOrdemBtn.addEventListener('click', () => handleFinalizeMain(false));
+            elements.cancelarJustificativaBtn.addEventListener('click', () => elements.justificativaModal.classList.add('hidden'));
+            elements.cancelarResponsavelBtn.addEventListener('click', () => elements.responsavelModal.classList.add('hidden'));
+            
+            elements.salvarProdutoBtn.addEventListener('click', async () => {
+                const codigo = elements.codigoProdutoCadastroInput.value.trim();
+                if (!codigo) return showAviso("O código do produto é obrigatório.");
+                const etapas = [];
+                let hasError = false;
+                elements.etapasContainer.querySelectorAll('.etapa').forEach(el => {
+                    const nomeEtapa = el.querySelector('.etapa-nome').value.trim();
+                    if (!nomeEtapa) hasError = true;
+                    const subetapas = [];
+                    el.querySelectorAll('.subetapa-nome').forEach(subEl => {
+                        const nomeSub = subEl.value.trim();
+                        if (!nomeSub) hasError = true;
+                        subetapas.push({ nome: nomeSub });
+                    });
+                    etapas.push({ nome: nomeEtapa, subetapas: subetapas });
+                });
+                if (hasError) return showAviso("Todos os nomes de etapas e sub-etapas são obrigatórios.");
+                try {
+                    const produtoData = { codigo, etapas };
+                    if (currentEditingProductId) {
+                        await setDoc(doc(db, "produtos", currentEditingProductId), produtoData);
+                        showAviso("Produto atualizado!");
+                    } else {
+                        await addDoc(collection(db, "produtos"), produtoData);
+                        showAviso("Produto salvo!");
+                    }
+                    elements.codigoProdutoCadastroInput.value = '';
+                    elements.etapasContainer.innerHTML = '';
+                    elements.salvarProdutoBtn.textContent = 'Salvar Produto';
+                    currentEditingProductId = null;
+                } catch (e) {
+                    console.error(e);
+                    showAviso("Erro ao salvar produto.");
+                }
+            });
+
+            elements.abrirOrdemBtn.addEventListener('click', async () => {
+                const numero = elements.numeroOrdemInput.value.trim();
+                const produtoId = elements.produtoApontamentoSelect.value;
+                const quantidade = parseInt(elements.quantidadeApontamentoInput.value, 10);
+                if (!numero || !produtoId || isNaN(quantidade) || quantidade <= 0) return showAviso("Preencha todos os campos.");
+                try {
+                    const ordensRef = collection(db, "ordens");
+                    const q = query(ordensRef, where("numero", "==", numero));
+                    if (!(await getDocs(q)).empty) return showAviso(`A ordem #${numero} já existe.`);
+                    
+                    const produtoDoc = await getDoc(doc(db, "produtos", produtoId));
+                    if (!produtoDoc.exists()) return showAviso("Produto não encontrado.");
+                    
+                    const pData = produtoDoc.data();
+                    const etapas = pData.etapas.map(e => ({
+                        ...e,
+                        inicio: null, fim: null, responsavel: null, concluida: false, tempoLiquido: 0,
+                        subetapas: e.subetapas.map(s => ({
+                            ...s,
+                            inicio: null, fim: null, responsavel: null, emPausa: false, pausas: [], tempoTotalPausas: 0, tempoLiquido: 0
+                        }))
+                    }));
+                    
+                    const novaOrdem = { numero, produto: pData.codigo, produtoId, quantidade, dataInicio: null, dataFim: null, concluida: false, etapas };
+                    await addDoc(ordensRef, novaOrdem);
+                    
+                    showAviso(`Ordem #${numero} aberta!`);
+                    elements.numeroOrdemInput.value = '';
+                    elements.produtoApontamentoSelect.value = '';
+                    elements.quantidadeApontamentoInput.value = '';
+                    switchTab('historicoTab');
+                } catch (e) {
+                    console.error(e);
+                    showAviso("Erro ao abrir ordem.");
+                }
+            });
+
+            elements.salvarResponsavelBtn.addEventListener('click', async () => {
+                const responsavel = elements.responsavelInput.value.trim();
+                if (!responsavel || !currentStartContext) return;
+                const { index, subIndex } = currentStartContext;
+                const now = Timestamp.now();
+                const subetapa = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+                subetapa.inicio = now;
+                subetapa.responsavel = responsavel;
+                const etapa = ordemProducaoAtual.etapas[index];
+                if (!etapa.inicio) {
+                    etapa.inicio = now;
+                    etapa.responsavel = responsavel;
+                }
+                if (!ordemProducaoAtual.dataInicio) {
+                    ordemProducaoAtual.dataInicio = now;
+                }
+                elements.responsavelModal.classList.add('hidden');
+                await updateOrderInFirestore();
+                renderizarOrdem();
+            });
+
+            elements.salvarJustificativaBtn.addEventListener('click', async () => {
+                const justificativa = elements.justificativaInput.value.trim();
+                if (!justificativa || !currentPauseContext) return;
+                const { index, subIndex } = currentPauseContext;
+                const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
+                sub.pausas.push({ justificativa, inicio: Date.now(), fim: null });
+                sub.emPausa = true;
+                elements.justificativaModal.classList.add('hidden');
+                await updateOrderInFirestore();
+                renderizarOrdem();
+            });
+        };
+        
+        const main = () => {
+            bindEventListeners();
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        elements.userIdDisplay.textContent = userId.substring(0, 8);
+                        setupFirebaseListeners();
+                    } else {
+                        signInAnonymously(auth);
+                    }
+                });
+            } catch (error) {
+                console.error("Erro Crítico ao Inicializar Firebase:", error);
+                showAviso("Falha na conexão com o sistema.");
+            }
+        };
+
+        main();
+    </script>
+</body>
+</html>
