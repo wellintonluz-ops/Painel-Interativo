@@ -204,11 +204,9 @@
         
         const updateOrderInFirestore = async () => {
             if (!currentOrderDocId) return;
-            await setDoc(doc(db, "ordens", currentOrderDocId), ordemProducaoAtual).catch(e => {
-                console.error("Erro ao atualizar ordem:", e);
-                showAviso("Erro ao salvar o progresso da ordem.");
-            });
+            await setDoc(doc(db, "ordens", currentOrderDocId), ordemProducaoAtual).catch(e => { console.error(e); showAviso("Erro ao salvar o progresso da ordem."); });
         };
+
         const handleStart = (event) => {
             const parent = event.target.closest('.subetapa-card');
             currentStartContext = { index: parseInt(parent.dataset.index), subIndex: parseInt(parent.dataset.subIndex) };
@@ -216,13 +214,14 @@
             elements.responsavelInput.value = '';
             elements.responsavelInput.focus();
         };
+
         const handlePause = async (event) => {
             const parent = event.target.closest('.subetapa-card');
             const { index, subIndex } = parent.dataset;
             const sub = ordemProducaoAtual.etapas[index].subetapas[subIndex];
             if (sub.emPausa) {
                 const now = Date.now();
-                const lastPause = sub.pausas[sub.pausas.length - 1];
+                const lastPause = sub.pausas[sub.pausas.length-1];
                 lastPause.fim = now;
                 sub.tempoTotalPausas += now - lastPause.inicio;
                 sub.emPausa = false;
@@ -302,6 +301,7 @@
                     li.textContent = data.codigo;
                     li.addEventListener('click', () => fillFormForEditing(doc.id, data));
                     elements.listaProdutosCadastradosUl.appendChild(li);
+
                     const option = document.createElement('option');
                     option.value = doc.id;
                     option.textContent = data.codigo;
@@ -320,8 +320,11 @@
                         li.addEventListener('click', () => carregarOrdemParaApontamento(doc.id, data));
                     }
                     li.innerHTML = `<p class="font-semibold text-gray-800">Ordem #${data.numero}</p><p class="text-sm text-gray-600"><strong>Produto:</strong> ${data.produto}</p><p class="text-sm text-gray-600"><strong>Quantidade:</strong> ${data.quantidade}</p><p class="text-sm text-gray-600"><strong>Início:</strong> ${data.dataInicio ? data.dataInicio.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Fim:</strong> ${data.dataFim ? data.dataFim.toDate().toLocaleString('pt-BR') : '--'}</p><p class="text-sm text-gray-600"><strong>Status:</strong> ${data.concluida ? '<span class="font-bold text-green-600">Concluída</span>' : '<span class="font-bold text-blue-600">Em Andamento</span>'}</p>`;
-                    if (data.concluida) elements.ordensConcluidasUl.appendChild(li);
-                    else elements.ordensEmAndamentoUl.appendChild(li);
+                    if (data.concluida) {
+                        elements.ordensConcluidasUl.appendChild(li);
+                    } else {
+                        elements.ordensEmAndamentoUl.appendChild(li);
+                    }
                 });
             });
         };
@@ -372,7 +375,7 @@
                     elements.etapasContainer.innerHTML = '';
                     elements.salvarProdutoBtn.textContent = 'Salvar Produto';
                     currentEditingProductId = null;
-                } catch (e) {
+                } catch(e) {
                     console.error(e);
                     showAviso("Erro ao salvar produto.");
                 }
@@ -395,10 +398,7 @@
                     const etapas = pData.etapas.map(e => ({
                         ...e,
                         inicio: null, fim: null, responsavel: null, concluida: false, tempoLiquido: 0,
-                        subetapas: e.subetapas.map(s => ({
-                            ...s,
-                            inicio: null, fim: null, responsavel: null, emPausa: false, pausas: [], tempoTotalPausas: 0, tempoLiquido: 0
-                        }))
+                        subetapas: e.subetapas.map(s => ({...s, inicio: null, fim: null, responsavel: null, emPausa: false, pausas: [], tempoTotalPausas: 0, tempoLiquido: 0 }))
                     }));
                     
                     const novaOrdem = { numero, produto: pData.codigo, produtoId, quantidade, dataInicio: null, dataFim: null, concluida: false, etapas };
