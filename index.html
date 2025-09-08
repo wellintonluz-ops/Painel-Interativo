@@ -29,6 +29,7 @@
             <div id="apontamentoTabBtn" class="tab-button">Apontamento de Ordem</div>
             <div id="historicoTabBtn" class="tab-button">Histórico de Ordens</div>
         </div>
+        
         <div id="cadastroTab" class="tab-content active">
             <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Cadastro de Produtos</h2>
             <div class="space-y-4">
@@ -42,6 +43,7 @@
                 <ul id="listaProdutosCadastrados" class="list-none space-y-2"></ul>
             </div>
         </div>
+        
         <div id="apontamentoTab" class="tab-content">
             <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Apontamento de Ordem de Produção</h2>
             <div class="space-y-4">
@@ -51,6 +53,7 @@
                 <button id="abrirOrdemBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow">Abrir Ordem</button>
             </div>
         </div>
+        
         <div id="historicoTab" class="tab-content">
             <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Histórico de Ordens</h2>
             <div id="ordemDetalhes" class="hidden mt-8 p-4 bg-white rounded-lg shadow-md border border-gray-200">
@@ -66,24 +69,7 @@
                 <div><h3 class="text-xl font-semibold text-gray-700">Ordens Concluídas</h3><ul id="ordensConcluidasUl" class="list-none space-y-2"></ul></div>
             </div>
         </div>
+        
         <div id="justificativaModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200"><h3 class="text-lg font-bold mb-4">Justificativa da Pausa</h3><textarea id="justificativaInput" rows="4" class="block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Motivo da pausa"></textarea><div class="mt-4 flex justify-end space-x-2"><button id="salvarJustificativaBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">Salvar</button><button id="cancelarJustificativaBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button></div></div></div>
         <div id="responsavelModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200"><h3 class="text-lg font-bold mb-4">Responsável pela Etapa</h3><input type="text" id="responsavelInput" class="block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Nome do operador"><div class="mt-4 flex justify-end space-x-2"><button id="salvarResponsavelBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">Salvar</button><button id="cancelarResponsavelBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button></div></div></div>
-        <div id="avisoModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm border border-gray-200 text-center"><p id="avisoText" class="text-lg mb-4 text-gray-700">--</p><button id="fecharAvisoBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">OK</button></div></div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, Timestamp, where, doc, getDoc, setDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const elements = {
-            cadastroTabBtn: document.getElementById('cadastroTabBtn'),
-            apontamentoTabBtn: document.getElementById('apontamentoTabBtn'),
-            historicoTabBtn: document.getElementById('historicoTabBtn'),
-            codigoProdutoCadastroInput: document.getElementById('codigoProdutoCadastro'),
-            etapasContainer: document.getElementById('etapasContainer'),
-            addEtapaBtn: document.getElementById('addEtapaBtn'),
-            salvarProdutoBtn: document.getElementById('salvarProdutoBtn'),
-            listaProdutosCadastradosUl: document.getElementById('listaProdutosCadastrados'),
-            numeroOrdemInput: document.getElementById('numeroOrdem'),
-            produtoApontamentoSelect:
+        <div id="avisoModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"><div
