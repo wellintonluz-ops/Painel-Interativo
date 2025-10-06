@@ -46,12 +46,30 @@
         body.logged-in #loginBtn {
             display: none;
         }
+
+        /* Loading Spinner */
+        #loadingOverlay {
+            transition: opacity 0.3s ease;
+        }
+        .spinner {
+            border-top-color: #4f46e5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="antialiased text-gray-800">
 
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <div class="spinner h-12 w-12 rounded-full border-4 border-t-4 border-gray-200"></div>
+    </div>
+
+
     <!-- Container do Painel Principal -->
-    <div id="dashboardContainer" class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <div id="dashboardContainer" class="min-h-screen p-4 sm:p-6 lg:p-8 invisible">
         <div class="max-w-7xl mx-auto">
             <header class="flex flex-col sm:flex-row items-center justify-between mb-8">
                 <div>
@@ -96,6 +114,7 @@
         </div>
     </div>
 
+    <!-- Modals (Login, Add/Edit, Delete, App Login) -->
     <!-- Modal de Login Principal -->
     <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 invisible opacity-0">
         <div id="loginModalContent" class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all scale-95 opacity-0">
@@ -198,10 +217,40 @@
         </div>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    <script>
+        // --- INÍCIO DA CONFIGURAÇÃO DO FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCbLj765BU-TaE0GSsC3CCsCt4Wrgf0nyU",
+            authDomain: "painel-interativo-a72ab.firebaseapp.com",
+            projectId: "painel-interativo-a72ab",
+            storageBucket: "painel-interativo-a72ab.appspot.com",
+            messagingSenderId: "934583256105",
+            appId: "1:934583256105:web:034fb795d11a5c116ac838",
+            measurementId: "G-4T3FTKT0K3"
+        };
+        
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (error) {
+            console.error("Erro na configuração do Firebase:", error);
+            alert("Erro fatal na configuração do Firebase. A aplicação não pode continuar.");
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+        // --- FIM DA CONFIGURAÇÃO DO FIREBASE ---
+
+
         document.addEventListener('DOMContentLoaded', () => {
             // --- Seletores de Elementos ---
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const dashboardContainer = document.getElementById('dashboardContainer');
             const loginModal = document.getElementById('loginModal');
             const loginModalContent = document.getElementById('loginModalContent');
             const loginForm = document.getElementById('loginForm');
@@ -209,18 +258,15 @@
             const loginBtn = document.getElementById('loginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
             const cancelLoginBtn = document.getElementById('cancelLoginBtn');
-
             const appLoginModal = document.getElementById('appLoginModal');
             const appLoginModalContent = document.getElementById('appLoginModalContent');
             const appLoginForm = document.getElementById('appLoginForm');
             const appLoginTitle = document.getElementById('appLoginTitle');
             const appLoginError = document.getElementById('appLoginError');
             const cancelAppLoginBtn = document.getElementById('cancelAppLoginBtn');
-
             const appGrid = document.getElementById('appGrid');
             const addAppBtn = document.getElementById('addAppBtn');
             const emptyState = document.getElementById('emptyState');
-            
             const addModal = document.getElementById('addAppModal');
             const modalTitle = document.getElementById('modalTitle');
             const modalContent = document.getElementById('modalContent');
@@ -229,13 +275,10 @@
             const appRequiresAuth = document.getElementById('appRequiresAuth');
             const appCredentialsContainer = document.getElementById('appCredentialsContainer');
             const addCredentialBtn = document.getElementById('addCredentialBtn');
-
-            const dashboardContainer = document.getElementById('dashboardContainer');
             const appViewer = document.getElementById('appViewer');
             const appViewerTitle = document.getElementById('appViewerTitle');
             const appFrame = document.getElementById('appFrame');
             const backToDashboardBtn = document.getElementById('backToDashboardBtn');
-
             const deleteConfirmModal = document.getElementById('deleteConfirmModal');
             const deleteModalContent = document.getElementById('deleteModalContent');
             const deleteModalText = document.getElementById('deleteModalText');
@@ -248,22 +291,51 @@
             let editingAppIndex = null;
             let appToOpenAfterLogin = null;
             let isLoggedIn = false;
+            let userId = null; // Still useful for auth checks, just not for doc path
+            let unsubscribeFromFirestore = null;
 
-            // --- Funções ---
-            const saveAppsToLocalStorage = () => localStorage.setItem('dashboardApps', JSON.stringify(apps));
-
-            const loadAppsFromLocalStorage = () => {
-                const storedApps = localStorage.getItem('dashboardApps');
-                if (storedApps) {
-                    apps = JSON.parse(storedApps);
-                } else {
-                    apps = [
-                        { name: 'Módulo de Estoque', url: './mrp_estoque.html', description: 'Sistema de gerenciamento de estoque (MRP).', category: 'Trabalho', requiresAuth: true, credentials: [{user: 'wellinton', pass: '123'}, {user: 'admin', pass: 'admin'}] },
-                        { name: 'Figma', url: 'https://figma.com', description: 'Ferramenta de design colaborativo.', category: 'Design', requiresAuth: false, credentials: [] },
-                        { name: 'GitHub', url: 'https://github.com', description: 'Plataforma de desenvolvimento e código.', category: 'Desenvolvimento', requiresAuth: false, credentials: [] }
-                    ];
-                    saveAppsToLocalStorage();
+            // --- Funções de Dados (Firestore) ---
+            const saveAppsToFirestore = async () => {
+                if (!auth.currentUser) return; // Need to be authenticated to write
+                try {
+                    // CORRECTED: Use a fixed path for a shared dashboard
+                    const docRef = doc(db, "dashboards", "sharedPanel");
+                    await setDoc(docRef, { apps: apps });
+                } catch (error) {
+                    console.error("Erro ao salvar no Firestore: ", error);
+                    alert("Não foi possível salvar as alterações. Verifique sua conexão e as regras de segurança do Firestore.");
                 }
+            };
+
+            const setupFirestoreListener = () => {
+                // CORRECTED: Use a fixed path for a shared dashboard
+                const docRef = doc(db, "dashboards", "sharedPanel");
+                
+                if (unsubscribeFromFirestore) unsubscribeFromFirestore();
+                
+                unsubscribeFromFirestore = onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists() && docSnap.data().apps) {
+                        apps = docSnap.data().apps;
+                    } else {
+                        // If the shared document doesn't exist, create it with default data
+                        apps = [
+                            { name: 'Módulo de Estoque', url: './mrp_estoque.html', description: 'Sistema de gerenciamento de estoque (MRP).', category: 'Trabalho', requiresAuth: true, credentials: [{user: 'wellinton', pass: '123'}, {user: 'admin', pass: 'admin'}] },
+                            { name: 'Figma', url: 'https://figma.com', description: 'Ferramenta de design colaborativo.', category: 'Design', requiresAuth: false, credentials: [] },
+                        ];
+                        saveAppsToFirestore(); // Save the initial data for everyone
+                    }
+                    renderApps();
+                    
+                    loadingOverlay.classList.add('opacity-0');
+                    setTimeout(() => {
+                        loadingOverlay.classList.add('hidden');
+                        dashboardContainer.classList.remove('invisible');
+                    }, 300);
+                }, (error) => {
+                    console.error("Erro ao ouvir dados do Firestore:", error);
+                    alert("Não foi possível carregar os dados. Verifique as regras de segurança do seu projeto Firebase. Para um painel compartilhado, as regras precisam permitir leitura/escrita para usuários autenticados.");
+                    loadingOverlay.style.display = 'none';
+                });
             };
 
             const renderApps = () => {
@@ -294,8 +366,9 @@
                         const categoryGrid = document.createElement('div');
                         categoryGrid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
 
-                        appsByCategory[category].forEach(app => {
-                            const index = apps.findIndex(originalApp => originalApp === app);
+                        appsByCategory[category].forEach((app) => {
+                            const index = apps.findIndex(originalApp => originalApp.name === app.name && originalApp.url === app.url && originalApp.category === app.category);
+                            if (index === -1) return; // Skip if not found in global array
                             const firstLetter = app.name.charAt(0).toUpperCase();
                             const card = document.createElement('div');
                             card.className = "app-card bg-white rounded-xl shadow-sm overflow-hidden flex flex-col group relative";
@@ -324,7 +397,7 @@
                 editingAppIndex = null;
                 modalTitle.textContent = "Adicionar Aplicativo";
                 addAppForm.reset();
-                appCredentialsContainer.innerHTML = ''; // Clear old credentials
+                appCredentialsContainer.innerHTML = '';
                 appCredentialsContainer.appendChild(addCredentialBtn);
                 appCredentialsContainer.classList.add('hidden');
                 addModal.classList.remove('invisible', 'opacity-0');
@@ -418,7 +491,7 @@
                 row.className = 'flex items-center space-x-2 credential-row';
                 row.innerHTML = `
                     <input type="text" value="${user}" class="w-full px-2 py-1 border border-gray-300 rounded-md text-sm app-cred-user" placeholder="Usuário" required>
-                    <input type="password" value="${pass}" class="w-full px-2 py-1 border border-gray-300 rounded-md text-sm app-cred-pass" placeholder="Senha" required>
+                    <input type="text" value="${pass}" class="w-full px-2 py-1 border border-gray-300 rounded-md text-sm app-cred-pass" placeholder="Senha" required>
                     <button type="button" class="remove-cred-btn flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-red-500 hover:text-white transition-colors">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -455,8 +528,7 @@
                     apps.push(newApp);
                 }
                 
-                saveAppsToLocalStorage();
-                renderApps();
+                saveAppsToFirestore();
                 closeAddModal();
             };
             
@@ -505,8 +577,7 @@
             const handleDeleteConfirm = () => {
                 if (indexToDelete !== null) {
                     apps.splice(indexToDelete, 1);
-                    saveAppsToLocalStorage();
-                    renderApps();
+                    saveAppsToFirestore();
                     closeDeleteModal();
                 }
             };
@@ -574,11 +645,30 @@
             confirmDeleteBtn.addEventListener('click', handleDeleteConfirm);
             deleteConfirmModal.addEventListener('click', (e) => { if (e.target === deleteConfirmModal) closeDeleteModal(); });
 
-            // --- Inicialização ---
-            isLoggedIn = sessionStorage.getItem('isUserLoggedIn') === 'true';
-            updateLoginStateUI();
-            loadAppsFromLocalStorage();
-            renderApps();
+            // --- Inicialização com Firebase ---
+            const initializeApp = async () => {
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid; // Save the user's ID
+                        setupFirestoreListener(); // Setup listener for the shared document
+                        isLoggedIn = sessionStorage.getItem('isUserLoggedIn') === 'true';
+                        updateLoginStateUI();
+                    }
+                });
+                
+                if (!auth.currentUser) {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (error) {
+                        console.error("Erro no login anônimo:", error);
+                        alert("Não foi possível conectar ao serviço. Tente recarregar a página.");
+                    }
+                }
+            };
+            
+            if (db) {
+                initializeApp();
+            }
         });
     </script>
 </body>
