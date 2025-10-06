@@ -252,15 +252,9 @@
                             const card = document.createElement('div');
                             card.className = "app-card bg-white rounded-xl shadow-sm overflow-hidden flex flex-col group relative";
                             card.innerHTML = `
-                                <a href="${app.url}" data-name="${app.name}" class="app-link flex-grow p-5 block cursor-pointer">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 font-bold text-xl">${firstLetter}</div>
-                                        <div>
-                                            <p class="text-lg font-semibold text-gray-900 truncate">${app.name}</p>
-                                            <p class="text-sm text-gray-500 truncate">${app.url}</p>
-                                        </div>
-                                    </div>
-                                    <p class="text-gray-600 mt-4 text-sm min-h-[40px]">${app.description || 'Nenhuma descrição fornecida.'}</p>
+                                <a href="${app.url}" data-name="${app.name}" class="app-link flex-grow p-4 flex flex-col items-center justify-center text-center cursor-pointer h-32">
+                                    <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 font-bold text-xl mb-3">${firstLetter}</div>
+                                    <p class="text-base font-semibold text-gray-800 truncate w-full px-2">${app.name}</p>
                                 </a>
                                 <button data-index="${index}" class="delete-btn absolute top-2 right-2 h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all scale-75 group-hover:scale-100" title="Remover App">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
