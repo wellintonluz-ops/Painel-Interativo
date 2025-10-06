@@ -1,75 +1,441 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apontamento de Produção Avançado</title>
+    <title>Painel de Aplicativos Interativo</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .tab-button { @apply flex-1 py-2 px-4 text-center cursor-pointer font-semibold transition-colors duration-200; }
-        .tab-button.active { @apply bg-indigo-600 text-white rounded-t-lg; }
-        .tab-button:not(.active) { @apply bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-t-lg; }
-        .product-item { @apply p-2 bg-gray-100 rounded border border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors; }
-        .etapa-concluida { background-color: #d1fae5 !important; border-color: #6ee7b7; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        #addAppModal, #appViewer, #deleteConfirmModal, #loginModal {
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .app-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        #appFrame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        /* Controle de visibilidade com base no login */
+        #addAppBtn, #logoutBtn, .delete-btn { display: none; }
+        #loginBtn { display: flex; }
+
+        body.logged-in #addAppBtn,
+        body.logged-in #logoutBtn,
+        body.logged-in .delete-btn {
+            display: flex;
+        }
+        body.logged-in #loginBtn {
+            display: none;
+        }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl border border-gray-200">
-        <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Sistema de Apontamento</h1>
-        <div class="text-center text-sm mb-4 text-gray-500">
-            <p>ID do Usuário: <span id="userIdDisplay" class="font-mono text-xs">Carregando...</span></p>
-        </div>
+<body class="antialiased text-gray-800">
 
-        <div class="flex space-x-2 mb-6">
-            <div id="cadastroTabBtn" class="tab-button active">Cadastro de Produtos</div>
-            <div id="apontamentoTabBtn" class="tab-button">Apontamento de Ordem</div>
-            <div id="historicoTabBtn" class="tab-button">Histórico de Ordens</div>
-        </div>
-        
-        <div id="cadastroTab" class="tab-content active">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Cadastro de Produtos</h2>
-            <div class="space-y-4">
-                <div><label for="codigoProdutoCadastro" class="block text-sm font-medium text-gray-700">Código do Produto Acabado</label><input type="text" id="codigoProdutoCadastro" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: UAC0001-N"></div>
-                <div id="etapasContainer" class="space-y-4"></div>
-                <button id="addEtapaBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow">Adicionar Etapa</button>
-                <button id="salvarProdutoBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow">Salvar Produto</button>
-            </div>
-            <div id="produtosSalvos" class="mt-8">
-                <h3 class="text-xl font-semibold mb-2">Produtos Cadastrados</h3>
-                <ul id="listaProdutosCadastrados" class="list-none space-y-2"></ul>
-            </div>
-        </div>
-        
-        <div id="apontamentoTab" class="tab-content">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Apontamento de Ordem de Produção</h2>
-            <div class="space-y-4">
-                <div><label for="numeroOrdem" class="block text-sm font-medium text-gray-700">Número da Ordem</label><input type="text" id="numeroOrdem" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: 123456"></div>
-                <div><label for="produtoApontamento" class="block text-sm font-medium text-gray-700">Código do Produto</label><select id="produtoApontamento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"><option value="">Selecione um produto...</option></select></div>
-                <div><label for="quantidadeApontamento" class="block text-sm font-medium text-gray-700">Quantidade</label><input type="number" id="quantidadeApontamento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: 100"></div>
-                <button id="abrirOrdemBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow">Abrir Ordem</button>
-            </div>
-        </div>
-        
-        <div id="historicoTab" class="tab-content">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800 text-center">Histórico de Ordens</h2>
-            <div id="ordemDetalhes" class="hidden mt-8 p-4 bg-white rounded-lg shadow-md border border-gray-200">
-                <h3 class="text-xl font-semibold mb-4 text-gray-800 text-center">Detalhes da Ordem #<span id="ordemNumeroDisplay">--</span></h3>
-                <div class="flex justify-center space-x-4 mb-4">
-                    <button id="finalizarOrdemBtn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Finalizar Ordem</button>
-                    <button id="voltarBtn" class="bg-gray-400 hover:bg-gray-500 text-white font-semibold py-2 px-6 rounded-lg shadow-lg">Voltar</button>
+    <!-- Container do Painel Principal -->
+    <div id="dashboardContainer" class="min-h-screen p-4 sm:p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto">
+            <header class="flex flex-col sm:flex-row items-center justify-between mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Meu Painel de Controle</h1>
+                    <p class="text-gray-500 mt-1">Acesse seus aplicativos em um só lugar.</p>
                 </div>
-                <div id="etapasApontamento" class="space-y-6"></div>
-            </div>
-            <div id="listasDeOrdens" class="space-y-6">
-                <div><h3 class="text-xl font-semibold text-gray-700">Ordens Em Andamento</h3><ul id="ordensEmAndamentoUl" class="list-none space-y-2"></ul></div>
-                <div><h3 class="text-xl font-semibold text-gray-700">Ordens Concluídas</h3><ul id="ordensConcluidasUl" class="list-none space-y-2"></ul></div>
+                <div class="flex items-center space-x-4 mt-4 sm:mt-0">
+                     <button id="addAppBtn" class="w-full sm:w-auto items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                        Adicionar Novo App
+                    </button>
+                    <button id="loginBtn" class="w-full sm:w-auto items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                        Login
+                    </button>
+                    <button id="logoutBtn" class="w-full sm:w-auto items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                        Sair
+                    </button>
+                </div>
+            </header>
+            <main>
+                <div id="appGrid">
+                    <!-- Categorias e cartões de aplicativo aqui -->
+                </div>
+                <p id="emptyState" class="hidden text-center text-gray-500 mt-16 text-lg">Seu painel está vazio. Clique em "Adicionar Novo App" para começar!</p>
+            </main>
+        </div>
+    </div>
+
+    <!-- Container do Visualizador de App (com iframe) -->
+    <div id="appViewer" class="fixed inset-0 z-40 flex flex-col bg-white invisible opacity-0">
+        <header class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+            <h2 id="appViewerTitle" class="text-xl font-bold text-gray-800"></h2>
+            <button id="backToDashboardBtn" class="flex items-center px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+                Voltar ao Painel
+            </button>
+        </header>
+        <div class="flex-grow overflow-hidden">
+            <iframe id="appFrame" title="Visualizador de Aplicativo"></iframe>
+        </div>
+    </div>
+
+    <!-- Modal de Login -->
+    <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 invisible opacity-0">
+        <div id="loginModalContent" class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all scale-95 opacity-0">
+            <h1 class="text-3xl font-bold text-center text-gray-900 mb-6">Login</h1>
+            <form id="loginForm" class="space-y-6">
+                <div>
+                    <label for="username" class="text-sm font-medium text-gray-700">Usuário</label>
+                    <input id="username" name="username" type="text" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Digite seu usuário">
+                </div>
+                <div>
+                    <label for="password" class="text-sm font-medium text-gray-700">Senha</label>
+                    <input id="password" name="password" type="password" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Digite sua senha">
+                </div>
+                <p id="loginError" class="text-sm text-center text-red-600 h-4"></p>
+                <div class="flex items-center justify-end space-x-4">
+                     <button type="button" id="cancelLoginBtn" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors">
+                        Entrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Adicionar Novo App -->
+    <div id="addAppModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 invisible opacity-0">
+        <div id="modalContent" class="bg-white rounded-xl shadow-2xl p-6 sm:p-8 w-11/12 max-w-md transform transition-all scale-95 opacity-0">
+            <h2 class="text-2xl font-bold mb-6">Adicionar Aplicativo</h2>
+            <form id="addAppForm">
+                <div class="mb-4">
+                    <label for="appName" class="block text-sm font-medium text-gray-700 mb-1">Nome do App</label>
+                    <input type="text" id="appName" name="appName" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: Ferramenta de Design" required>
+                </div>
+                <div class="mb-4">
+                    <label for="appUrl" class="block text-sm font-medium text-gray-700 mb-1">URL do App</label>
+                    <input type="url" id="appUrl" name="appUrl" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="./meu_app.html" required>
+                </div>
+                <div class="mb-4">
+                    <label for="appCategory" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <input type="text" id="appCategory" name="appCategory" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: Trabalho, Design" required>
+                </div>
+                <div class="mb-6">
+                    <label for="appDesc" class="block text-sm font-medium text-gray-700 mb-1">Descrição (Opcional)</label>
+                    <textarea id="appDesc" name="appDesc" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Uma breve descrição do que o app faz"></textarea>
+                </div>
+                <div class="flex items-center justify-end space-x-4">
+                    <button type="button" id="cancelBtn" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors">Salvar App</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div id="deleteConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 invisible opacity-0">
+        <div id="deleteModalContent" class="bg-white rounded-xl shadow-2xl p-6 sm:p-8 w-11/12 max-w-md transform transition-all scale-95 opacity-0">
+            <h2 class="text-2xl font-bold mb-4">Confirmar Exclusão</h2>
+            <p id="deleteModalText" class="text-gray-600 mb-6">Você tem certeza que deseja remover este aplicativo?</p>
+            <div class="flex items-center justify-end space-x-4">
+                <button type="button" id="cancelDeleteBtn" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">Cancelar</button>
+                <button type="button" id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-colors">Excluir</button>
             </div>
         </div>
-        
-        <div id="justificativaModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200"><h3 class="text-lg font-bold mb-4">Justificativa da Pausa</h3><textarea id="justificativaInput" rows="4" class="block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Motivo da pausa"></textarea><div class="mt-4 flex justify-end space-x-2"><button id="salvarJustificativaBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">Salvar</button><button id="cancelarJustificativaBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button></div></div></div>
-        <div id="responsavelModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200"><h3 class="text-lg font-bold mb-4">Responsável pela Etapa</h3><input type="text" id="responsavelInput" class="block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Nome do operador"><div class="mt-4 flex justify-end space-x-2"><button id="salvarResponsavelBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">Salvar</button><button id="cancelarResponsavelBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button></div></div></div>
-        <div id="avisoModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"><div
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Seletores de Elementos ---
+            const loginModal = document.getElementById('loginModal');
+            const loginModalContent = document.getElementById('loginModalContent');
+            const loginForm = document.getElementById('loginForm');
+            const loginError = document.getElementById('loginError');
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const cancelLoginBtn = document.getElementById('cancelLoginBtn');
+
+            const appGrid = document.getElementById('appGrid');
+            const addAppBtn = document.getElementById('addAppBtn');
+            const emptyState = document.getElementById('emptyState');
+            
+            const addModal = document.getElementById('addAppModal');
+            const addModalContent = document.getElementById('modalContent');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const addAppForm = document.getElementById('addAppForm');
+
+            const dashboardContainer = document.getElementById('dashboardContainer');
+            const appViewer = document.getElementById('appViewer');
+            const appViewerTitle = document.getElementById('appViewerTitle');
+            const appFrame = document.getElementById('appFrame');
+            const backToDashboardBtn = document.getElementById('backToDashboardBtn');
+
+            const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+            const deleteModalContent = document.getElementById('deleteModalContent');
+            const deleteModalText = document.getElementById('deleteModalText');
+            const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+            // --- Estado da Aplicação ---
+            let apps = [];
+            let indexToDelete = null;
+            let isLoggedIn = false;
+
+            // --- Funções ---
+            const saveAppsToLocalStorage = () => localStorage.setItem('dashboardApps', JSON.stringify(apps));
+
+            const loadAppsFromLocalStorage = () => {
+                const storedApps = localStorage.getItem('dashboardApps');
+                if (storedApps) {
+                    apps = JSON.parse(storedApps);
+                } else {
+                    apps = [
+                        { name: 'Módulo de Estoque', url: './mrp_estoque.html', description: 'Sistema de gerenciamento de estoque (MRP).', category: 'Trabalho' },
+                        { name: 'Figma', url: 'https://figma.com', description: 'Ferramenta de design colaborativo.', category: 'Design' },
+                        { name: 'GitHub', url: 'https://github.com', description: 'Plataforma de desenvolvimento e código.', category: 'Desenvolvimento' }
+                    ];
+                    saveAppsToLocalStorage();
+                }
+            };
+
+            const renderApps = () => {
+                appGrid.innerHTML = ''; 
+                if (apps.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    appGrid.className = '';
+                } else {
+                    emptyState.classList.add('hidden');
+                    appGrid.className = 'space-y-12';
+
+                    const appsByCategory = apps.reduce((acc, app) => {
+                        const category = app.category || 'Sem Categoria';
+                        if (!acc[category]) {
+                            acc[category] = [];
+                        }
+                        acc[category].push(app);
+                        return acc;
+                    }, {});
+
+                    const sortedCategories = Object.keys(appsByCategory).sort();
+
+                    sortedCategories.forEach(category => {
+                        const categorySection = document.createElement('section');
+                        
+                        const categoryTitle = document.createElement('h2');
+                        categoryTitle.className = 'text-2xl font-bold text-gray-800 mb-4 capitalize';
+                        categoryTitle.textContent = category;
+                        categorySection.appendChild(categoryTitle);
+
+                        const categoryGrid = document.createElement('div');
+                        categoryGrid.className = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6';
+
+                        appsByCategory[category].forEach(app => {
+                            const index = apps.findIndex(originalApp => originalApp === app);
+                            const firstLetter = app.name.charAt(0).toUpperCase();
+                            const card = document.createElement('div');
+                            card.className = "app-card bg-white rounded-xl shadow-sm overflow-hidden flex flex-col group relative";
+                            card.innerHTML = `
+                                <a href="${app.url}" data-name="${app.name}" class="app-link flex-grow p-5 block cursor-pointer">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 font-bold text-xl">${firstLetter}</div>
+                                        <div>
+                                            <p class="text-lg font-semibold text-gray-900 truncate">${app.name}</p>
+                                            <p class="text-sm text-gray-500 truncate">${app.url}</p>
+                                        </div>
+                                    </div>
+                                    <p class="text-gray-600 mt-4 text-sm min-h-[40px]">${app.description || 'Nenhuma descrição fornecida.'}</p>
+                                </a>
+                                <button data-index="${index}" class="delete-btn absolute top-2 right-2 h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all scale-75 group-hover:scale-100" title="Remover App">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            `;
+                            categoryGrid.appendChild(card);
+                        });
+                        
+                        categorySection.appendChild(categoryGrid);
+                        appGrid.appendChild(categorySection);
+                    });
+                }
+            };
+            
+            // --- Funções de Modal ---
+            const openAddModal = () => {
+                addModal.classList.remove('invisible', 'opacity-0');
+                addModalContent.classList.remove('scale-95', 'opacity-0');
+            };
+
+            const closeAddModal = () => {
+                addModalContent.classList.add('scale-95', 'opacity-0');
+                addModal.classList.add('opacity-0');
+                setTimeout(() => {
+                    addModal.classList.add('invisible');
+                    addAppForm.reset();
+                }, 300);
+            };
+            
+            const openDeleteModal = (index) => {
+                indexToDelete = index;
+                deleteModalText.textContent = `Você tem certeza que deseja remover o aplicativo "${apps[index].name}"?`;
+                deleteConfirmModal.classList.remove('invisible', 'opacity-0');
+                deleteModalContent.classList.remove('scale-95', 'opacity-0');
+            };
+
+            const closeDeleteModal = () => {
+                deleteModalContent.classList.add('scale-95', 'opacity-0');
+                deleteConfirmModal.classList.add('opacity-0');
+                setTimeout(() => {
+                    deleteConfirmModal.classList.add('invisible');
+                    indexToDelete = null;
+                }, 300);
+            };
+
+            const openLoginModal = () => {
+                loginModal.classList.remove('invisible', 'opacity-0');
+                loginModalContent.classList.remove('scale-95', 'opacity-0');
+            };
+
+            const closeLoginModal = () => {
+                loginModalContent.classList.add('scale-95', 'opacity-0');
+                loginModal.classList.add('opacity-0');
+                setTimeout(() => {
+                    loginModal.classList.add('invisible');
+                    loginError.textContent = '';
+                    loginForm.reset();
+                }, 300);
+            };
+            
+            // --- Funções de Manipulação de Eventos ---
+            const handleFormSubmit = (e) => {
+                e.preventDefault();
+                const name = e.target.appName.value.trim();
+                const url = e.target.appUrl.value.trim();
+                const category = e.target.appCategory.value.trim();
+                const description = e.target.appDesc.value.trim();
+                
+                if (name && url && category) {
+                    apps.push({ name, url, description, category });
+                    saveAppsToLocalStorage();
+                    renderApps();
+                    closeAddModal();
+                }
+            };
+            
+            const handleGridClick = (e) => {
+                const deleteButton = e.target.closest('.delete-btn');
+                const appLink = e.target.closest('.app-link');
+
+                if (deleteButton) {
+                    e.preventDefault();
+                    if (isLoggedIn) {
+                        const index = parseInt(deleteButton.dataset.index, 10);
+                        openDeleteModal(index);
+                    }
+                    return;
+                }
+
+                if (appLink) {
+                    e.preventDefault();
+                    const url = appLink.href;
+                    const name = appLink.dataset.name;
+                    
+                    appViewerTitle.textContent = name;
+                    appFrame.src = url;
+                    dashboardContainer.classList.add('hidden');
+                    appViewer.classList.remove('invisible', 'opacity-0');
+                }
+            };
+
+            const handleBackToDashboard = () => {
+                appViewer.classList.add('invisible', 'opacity-0');
+                dashboardContainer.classList.remove('hidden');
+                appFrame.src = 'about:blank';
+                appViewerTitle.textContent = '';
+            };
+            
+            const handleDeleteConfirm = () => {
+                if (indexToDelete !== null) {
+                    apps.splice(indexToDelete, 1);
+                    saveAppsToLocalStorage();
+                    renderApps();
+                    closeDeleteModal();
+                }
+            };
+
+            // --- Lógica de Login/Logout ---
+            const updateLoginStateUI = () => {
+                if (isLoggedIn) {
+                    document.body.classList.add('logged-in');
+                } else {
+                    document.body.classList.remove('logged-in');
+                }
+            };
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const username = loginForm.username.value;
+                const password = loginForm.password.value;
+
+                if (username === 'Wellinton' && password === 'Wellinton7842') {
+                    isLoggedIn = true;
+                    sessionStorage.setItem('isUserLoggedIn', 'true');
+                    updateLoginStateUI();
+                    closeLoginModal();
+                } else {
+                    loginError.textContent = 'Usuário ou senha inválidos.';
+                }
+            };
+
+            const handleLogout = () => {
+                isLoggedIn = false;
+                sessionStorage.removeItem('isUserLoggedIn');
+                updateLoginStateUI();
+            };
+
+            // --- Event Listeners ---
+            loginBtn.addEventListener('click', openLoginModal);
+            logoutBtn.addEventListener('click', handleLogout);
+            loginForm.addEventListener('submit', handleLogin);
+            cancelLoginBtn.addEventListener('click', closeLoginModal);
+            loginModal.addEventListener('click', (e) => { if (e.target === loginModal) closeLoginModal(); });
+            
+            addAppBtn.addEventListener('click', () => { if(isLoggedIn) openAddModal(); });
+            cancelBtn.addEventListener('click', closeAddModal);
+            addModal.addEventListener('click', (e) => { if (e.target === addModal) closeAddModal(); });
+            addAppForm.addEventListener('submit', handleFormSubmit);
+            
+            appGrid.addEventListener('click', handleGridClick);
+            backToDashboardBtn.addEventListener('click', handleBackToDashboard);
+
+            cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+            confirmDeleteBtn.addEventListener('click', handleDeleteConfirm);
+            deleteConfirmModal.addEventListener('click', (e) => { if (e.target === deleteConfirmModal) closeDeleteModal(); });
+
+            // --- Inicialização ---
+            if (sessionStorage.getItem('isUserLoggedIn') === 'true') {
+                isLoggedIn = true;
+            }
+            updateLoginStateUI();
+            loadAppsFromLocalStorage();
+            renderApps();
+        });
+    </script>
+</body>
+</html>
+
