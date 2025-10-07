@@ -221,7 +221,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // --- INÍCIO DA CONFIGURAÇÃO DO FIREBASE ---
         const firebaseConfig = {
@@ -291,16 +291,15 @@
             let editingAppIndex = null;
             let appToOpenAfterLogin = null;
             let isLoggedIn = false;
-            let userId = null; // Still useful for auth checks, just not for doc path
+            let userId = null;
             let unsubscribeFromFirestore = null;
+            const sharedDocRef = doc(db, "dashboards", "sharedPanel");
 
             // --- Funções de Dados (Firestore) ---
             const saveAppsToFirestore = async () => {
-                if (!auth.currentUser) return; // Need to be authenticated to write
+                if (!auth.currentUser) return;
                 try {
-                    // CORRECTED: Use a fixed path for a shared dashboard
-                    const docRef = doc(db, "dashboards", "sharedPanel");
-                    await setDoc(docRef, { apps: apps });
+                    await setDoc(sharedDocRef, { apps: apps });
                 } catch (error) {
                     console.error("Erro ao salvar no Firestore: ", error);
                     alert("Não foi possível salvar as alterações. Verifique sua conexão e as regras de segurança do Firestore.");
@@ -308,22 +307,15 @@
             };
 
             const setupFirestoreListener = () => {
-                // CORRECTED: Use a fixed path for a shared dashboard
-                const docRef = doc(db, "dashboards", "sharedPanel");
-                
                 if (unsubscribeFromFirestore) unsubscribeFromFirestore();
                 
-                unsubscribeFromFirestore = onSnapshot(docRef, (docSnap) => {
+                unsubscribeFromFirestore = onSnapshot(sharedDocRef, (docSnap) => {
                     if (docSnap.exists() && docSnap.data().apps) {
                         apps = docSnap.data().apps;
-                    } else {
-                        // If the shared document doesn't exist, create it with default data
-                        apps = [
-                            { name: 'Módulo de Estoque', url: './mrp_estoque.html', description: 'Sistema de gerenciamento de estoque (MRP).', category: 'Trabalho', requiresAuth: true, credentials: [{user: 'wellinton', pass: '123'}, {user: 'admin', pass: 'admin'}] },
-                            { name: 'Figma', url: 'https://figma.com', description: 'Ferramenta de design colaborativo.', category: 'Design', requiresAuth: false, credentials: [] },
-                        ];
-                        saveAppsToFirestore(); // Save the initial data for everyone
-                    }
+                    } 
+                    // Removida a lógica 'else' para evitar sobrescrever dados existentes.
+                    // A criação inicial é tratada na função 'initializeAppWithFirestore'
+                    
                     renderApps();
                     
                     loadingOverlay.classList.add('opacity-0');
@@ -333,7 +325,7 @@
                     }, 300);
                 }, (error) => {
                     console.error("Erro ao ouvir dados do Firestore:", error);
-                    alert("Não foi possível carregar os dados. Verifique as regras de segurança do seu projeto Firebase. Para um painel compartilhado, as regras precisam permitir leitura/escrita para usuários autenticados.");
+                    alert("Não foi possível carregar os dados. Verifique as regras de segurança do seu projeto Firebase.");
                     loadingOverlay.style.display = 'none';
                 });
             };
@@ -368,7 +360,7 @@
 
                         appsByCategory[category].forEach((app) => {
                             const index = apps.findIndex(originalApp => originalApp.name === app.name && originalApp.url === app.url && originalApp.category === app.category);
-                            if (index === -1) return; // Skip if not found in global array
+                            if (index === -1) return;
                             const firstLetter = app.name.charAt(0).toUpperCase();
                             const card = document.createElement('div');
                             card.className = "app-card bg-white rounded-xl shadow-sm overflow-hidden flex flex-col group relative";
@@ -646,11 +638,24 @@
             deleteConfirmModal.addEventListener('click', (e) => { if (e.target === deleteConfirmModal) closeDeleteModal(); });
 
             // --- Inicialização com Firebase ---
-            const initializeApp = async () => {
-                onAuthStateChanged(auth, (user) => {
+            const initializeAppWithFirestore = async () => {
+                onAuthStateChanged(auth, async (user) => {
                     if (user) {
-                        userId = user.uid; // Save the user's ID
-                        setupFirestoreListener(); // Setup listener for the shared document
+                        userId = user.uid;
+                        
+                        // CORREÇÃO: Verifica se o documento existe antes de criar os dados padrão
+                        const docSnap = await getDoc(sharedDocRef);
+                        if (!docSnap.exists()) {
+                            // O documento não existe, então criamos ele com os dados iniciais
+                            const initialApps = [
+                                { name: 'Módulo de Estoque', url: './mrp_estoque.html', description: 'Sistema de gerenciamento de estoque (MRP).', category: 'Trabalho', requiresAuth: true, credentials: [{user: 'wellinton', pass: '123'}, {user: 'admin', pass: 'admin'}] },
+                                { name: 'Figma', url: 'https://figma.com', description: 'Ferramenta de design colaborativo.', category: 'Design', requiresAuth: false, credentials: [] },
+                            ];
+                            await setDoc(sharedDocRef, { apps: initialApps });
+                        }
+
+                        // Agora que garantimos que o documento existe, iniciamos o listener
+                        setupFirestoreListener();
                         isLoggedIn = sessionStorage.getItem('isUserLoggedIn') === 'true';
                         updateLoginStateUI();
                     }
@@ -667,7 +672,7 @@
             };
             
             if (db) {
-                initializeApp();
+                initializeAppWithFirestore();
             }
         });
     </script>
