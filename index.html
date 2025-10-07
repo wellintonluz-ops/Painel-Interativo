@@ -506,10 +506,9 @@
             const lancamentosFiltrados = lancamentos.filter(l => {
                 const dataLancamento = new Date(l.data + 'T00:00:00');
                 const filtroFuncOk = funcId === 'geral' || l.funcionarioId == funcId;
-                const filtroAtivOk = ativId === 'geral' || l.atividadeId == ativId;
                 const filtroDataInicioOk = !dataInicio || dataLancamento >= dataInicio;
                 const filtroDataFimOk = !dataFim || dataLancamento <= dataFim;
-                return filtroFuncOk && filtroAtivOk && filtroDataInicioOk && filtroDataFimOk;
+                return filtroFuncOk && filtroDataInicioOk && filtroDataFimOk;
             });
             
             const atividadesParaMostrar = ativId === 'geral' 
@@ -528,12 +527,10 @@
                     <h2 class="text-2xl font-bold mb-4 text-white border-b border-gray-700 pb-2">${atividade.nome}</h2>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
                         <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
-                            <h3 id="titulo-desempenho-${atividade.id}" class="text-xl font-bold mb-4 text-white">Desempenho (% Meta Atingida)</h3>
-                            <canvas id="desempenho-chart-${atividade.id}"></canvas>
+                            <canvas id="desempenho-producao-chart-${atividade.id}"></canvas>
                         </div>
                         <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
-                            <h3 class="text-xl font-bold mb-4 text-white">Produção x Meta no Período</h3>
-                            <canvas id="producao-chart-${atividade.id}"></canvas>
+                             <canvas id="producao-geral-chart-${atividade.id}"></canvas>
                         </div>
                         <div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg shadow-lg">
                             <h3 class="text-xl font-bold mb-4 text-white">Histórico de Produção (Quantidade)</h3>
@@ -545,66 +542,103 @@
 
                 const lancamentosDaAtividade = lancamentosFiltrados.filter(l => l.atividadeId === atividade.id);
                 
-                // Adiciona um timeout para garantir que o DOM seja atualizado antes de renderizar o gráfico
                 setTimeout(() => {
-                    renderDesempenhoChart(`desempenho-chart-${atividade.id}`, lancamentosDaAtividade, funcId, `titulo-desempenho-${atividade.id}`);
-                    renderProducaoDiariaChart(`producao-chart-${atividade.id}`, lancamentosDaAtividade);
+                    renderDesempenhoProducaoChart(`desempenho-producao-chart-${atividade.id}`, lancamentosDaAtividade, atividade, funcId);
+                    renderProducaoGeralChart(`producao-geral-chart-${atividade.id}`, lancamentosDaAtividade, atividade);
                     renderHistoricoProducaoChart(`historico-chart-${atividade.id}`, lancamentosDaAtividade);
                 }, 0);
             });
         };
+        
+        const renderDesempenhoProducaoChart = (canvasId, dados, atividade, funcId) => {
+            const dadosPorFuncionario = {};
+            dados.forEach(l => {
+                const func = funcionarios.find(f => f.id == l.funcionarioId);
+                if (!func) return;
+                if (!dadosPorFuncionario[func.nome]) {
+                    dadosPorFuncionario[func.nome] = { produzido: 0, tempoHoras: 0 };
+                }
+                dadosPorFuncionario[func.nome].produzido += l.quantidade;
+                dadosPorFuncionario[func.nome].tempoHoras += l.tempoLiquido / 3600000;
+            });
 
-        const renderDesempenhoChart = (canvasId, dados, funcId, titleId) => {
-            let chartData, title;
-            const titleElement = document.getElementById(titleId);
-            const chartOptions = { scales: { y: { beginAtZero: true, ticks: { color: '#d1d5db' } }, x: { ticks: { color: '#d1d5db' } } }, plugins: { legend: { labels: { color: '#d1d5db' } } } };
-            
-            if (funcId === 'geral') {
-                title = "Desempenho Geral (% Meta Atingida)";
-                const desempenho = {};
-                dados.forEach(l => {
-                    const func = funcionarios.find(f => f.id == l.funcionarioId); if(!func) return;
-                    if(!desempenho[func.nome]) desempenho[func.nome] = { total: 0, count: 0 };
-                    const ativ = atividades.find(a => a.id == l.atividadeId), meta = ativ ? ativ.meta : 0;
-                    const perc = meta > 0 ? (l.producaoHora / meta) * 100 : 0;
-                    desempenho[func.nome].total += perc; desempenho[func.nome].count++;
-                });
-                const labels = Object.keys(desempenho); const data = labels.map(nome => (desempenho[nome].total / desempenho[nome].count));
-                chartData = { labels, datasets: [{ label: 'Média de % da Meta', data, backgroundColor: 'rgba(79, 70, 229, 0.8)' }] };
-            } else {
+            const labels = Object.keys(dadosPorFuncionario);
+            const dataProduzido = labels.map(nome => dadosPorFuncionario[nome].produzido);
+            const dataMeta = labels.map(nome => atividade.meta * dadosPorFuncionario[nome].tempoHoras);
+            const dataPercentual = labels.map((nome, i) => dataMeta[i] > 0 ? (dataProduzido[i] / dataMeta[i]) * 100 : 0);
+
+            let titleText = `Produção x Meta por Funcionário | Meta: ${atividade.meta}/hr`;
+            if (funcId !== 'geral') {
                 const funcNome = funcionarios.find(f => f.id == funcId)?.nome || 'Funcionário';
-                title = `Desempenho - ${funcNome} (% Meta)`;
-                const desempenho = {};
-                 dados.forEach(l => {
-                    const dataFormatada = new Date(l.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'});
-                    if(!desempenho[dataFormatada]) desempenho[dataFormatada] = { total: 0, count: 0 };
-                    const ativ = atividades.find(a => a.id == l.atividadeId), meta = ativ ? ativ.meta : 0;
-                    const perc = meta > 0 ? (l.producaoHora / meta) * 100 : 0;
-                    desempenho[dataFormatada].total += perc; desempenho[dataFormatada].count++;
-                });
-                const labels = Object.keys(desempenho).sort((a,b) => new Date(a.split('/').reverse().join('-')) - new Date(b.split('/').reverse().join('-')));
-                const data = labels.map(dia => (desempenho[dia].total / desempenho[dia].count));
-                chartData = { labels, datasets: [{ label: 'Média de % da Meta', data, backgroundColor: 'rgba(52, 211, 153, 0.8)' }] };
+                titleText = `Desempenho ${funcNome} | Meta: ${atividade.meta}/hr`
             }
 
-            if (titleElement) titleElement.textContent = title;
+            const chartData = {
+                labels,
+                datasets: [
+                    { type: 'bar', label: 'Total Produzido', data: dataProduzido, backgroundColor: 'rgba(79, 70, 229, 0.8)', yAxisID: 'y' },
+                    { type: 'bar', label: 'Meta Esperada', data: dataMeta, backgroundColor: 'rgba(239, 68, 68, 0.8)', yAxisID: 'y' },
+                    { type: 'line', label: '% Atingido', data: dataPercentual, borderColor: 'rgba(234, 179, 8, 1)', backgroundColor: 'rgba(234, 179, 8, 0.5)', yAxisID: 'y1', tension: 0.1 }
+                ]
+            };
+            
+            const chartOptions = {
+                plugins: { 
+                    legend: { labels: { color: '#d1d5db' } },
+                    title: { display: true, text: titleText, color: '#d1d5db', font: { size: 16 } }
+                },
+                scales: {
+                    x: { ticks: { color: '#d1d5db' } },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        ticks: { color: '#d1d5db' },
+                        title: { display: true, text: 'Quantidade', color: '#d1d5db'}
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        ticks: { color: '#d1d5db', callback: value => value + '%' },
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: '% Atingido', color: '#d1d5db'}
+                    }
+                }
+            };
+            
+            updateChart(canvasId, { data: chartData, options: chartOptions });
+        };
+
+        const renderProducaoGeralChart = (canvasId, dados, atividade) => {
+            const totalProduzido = dados.reduce((acc, l) => acc + l.quantidade, 0);
+            const totalTempoHoras = dados.reduce((acc, l) => acc + l.tempoLiquido, 0) / 3600000;
+            const metaEsperada = atividade.meta * totalTempoHoras;
+
+             const chartData = {
+                labels: ['Total Produzido', 'Meta Esperada'],
+                datasets: [{
+                    data: [totalProduzido, metaEsperada],
+                    backgroundColor: ['rgba(79, 70, 229, 0.8)', 'rgba(239, 68, 68, 0.8)']
+                }]
+            };
+
+            const chartOptions = {
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Produção Geral x Meta da Atividade', color: '#d1d5db', font: { size: 16 } }
+                },
+                scales: { 
+                    y: { beginAtZero: true, ticks: { color: '#d1d5db' } }, 
+                    x: { ticks: { color: '#d1d5db' } } 
+                }
+            };
+
             updateChart(canvasId, { type: 'bar', data: chartData, options: chartOptions });
         };
 
-        const renderProducaoDiariaChart = (canvasId, dadosFiltrados) => {
-            const dados = {};
-            dadosFiltrados.forEach(l => {
-                const func = funcionarios.find(f => f.id == l.funcionarioId);
-                const label = func ? func.nome : 'Desconhecido';
-                if(!dados[label]) dados[label] = { produzido: 0, tempoHoras: 0, metaHora: atividades.find(a => a.id === l.atividadeId)?.meta || 0 };
-                dados[label].produzido += l.quantidade; 
-                dados[label].tempoHoras += l.tempoLiquido / 3600000;
-            });
-            const labels = Object.keys(dados);
-            const dataProduzido = labels.map(nome => dados[nome].produzido);
-            const dataMeta = labels.map(nome => dados[nome].metaHora * dados[nome].tempoHoras);
-            updateChart(canvasId, { type: 'bar', data: { labels, datasets: [{ label: 'Total Produzido', data: dataProduzido, backgroundColor: 'rgba(79, 70, 229, 0.8)' }, { label: 'Meta Esperada', data: dataMeta, backgroundColor: 'rgba(239, 68, 68, 0.8)' }] }, options: { scales: { y: { beginAtZero: true, ticks: { color: '#d1d5db' } }, x: { ticks: { color: '#d1d5db' } } }, plugins: { legend: { labels: { color: '#d1d5db' } } } } });
-        };
 
         const renderHistoricoProducaoChart = (canvasId, dados) => {
             const producaoPorDia = {};
