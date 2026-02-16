@@ -184,6 +184,14 @@
                     <label for="appDesc" class="block text-sm font-medium text-gray-700 mb-1">Descrição (Opcional)</label>
                     <textarea id="appDesc" name="appDesc" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Uma breve descrição do que o app faz"></textarea>
                 </div>
+                <div class="mb-4">
+                    <label for="appIconFile" class="block text-sm font-medium text-gray-700 mb-1">Ícone do App (Opcional)</label>
+                    <input type="file" id="appIconFile" name="appIconFile" accept="image/*" class="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                    <div class="flex items-center justify-between mt-1">
+                        <p class="text-xs text-gray-500">Aceita qualquer tamanho; convertemos para 256x256 automaticamente. Se não escolher, usamos o ícone atual ou a letra inicial.</p>
+                        <button type="button" id="removeIconBtn" class="hidden text-xs font-semibold text-red-600 hover:text-red-700">Remover ícone</button>
+                    </div>
+                </div>
                 <div class="mb-6 space-y-2">
                     <div class="flex items-center">
                         <input type="checkbox" id="appRequiresAuth" name="appRequiresAuth" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
@@ -272,6 +280,7 @@
             const modalContent = document.getElementById('modalContent');
             const cancelBtn = document.getElementById('cancelBtn');
             const addAppForm = document.getElementById('addAppForm');
+            const removeIconBtn = document.getElementById('removeIconBtn');
             const appRequiresAuth = document.getElementById('appRequiresAuth');
             const appCredentialsContainer = document.getElementById('appCredentialsContainer');
             const addCredentialBtn = document.getElementById('addCredentialBtn');
@@ -291,9 +300,45 @@
             let editingAppIndex = null;
             let appToOpenAfterLogin = null;
             let isLoggedIn = false;
+            let iconCleared = false;
             let userId = null;
             let unsubscribeFromFirestore = null;
             const sharedDocRef = doc(db, "dashboards", "sharedPanel");
+
+            const ensureAppIds = () => {
+                let changed = false;
+                apps = apps.map((app, idx) => {
+                    if (app.id) return app;
+                    changed = true;
+                    return { ...app, id: `app_${Date.now()}_${idx}_${Math.floor(Math.random() * 100000)}` };
+                });
+                return changed;
+            };
+
+            const resizeImageToDataURL = (file, size = 256) => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = size;
+                        canvas.height = size;
+                        const ctx = canvas.getContext('2d');
+                        const scale = Math.max(size / img.width, size / img.height); // cover
+                        const w = img.width * scale;
+                        const h = img.height * scale;
+                        const dx = (size - w) / 2;
+                        const dy = (size - h) / 2;
+                        ctx.clearRect(0, 0, size, size);
+                        ctx.drawImage(img, dx, dy, w, h);
+                        resolve(canvas.toDataURL('image/png', 0.92));
+                    };
+                    img.onerror = reject;
+                    img.src = reader.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
 
             // --- Funções de Dados (Firestore) ---
             const saveAppsToFirestore = async () => {
@@ -312,6 +357,8 @@
                 unsubscribeFromFirestore = onSnapshot(sharedDocRef, (docSnap) => {
                     if (docSnap.exists() && docSnap.data().apps) {
                         apps = docSnap.data().apps;
+                        const changed = ensureAppIds();
+                        if (changed) { saveAppsToFirestore(); }
                     } 
                     // Removida a lógica 'else' para evitar sobrescrever dados existentes.
                     // A criação inicial é tratada na função 'initializeAppWithFirestore'
@@ -359,14 +406,16 @@
                         categoryGrid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
 
                         appsByCategory[category].forEach((app) => {
-                            const index = apps.findIndex(originalApp => originalApp.name === app.name && originalApp.url === app.url && originalApp.category === app.category);
+                            const index = apps.findIndex(originalApp => originalApp.id === app.id);
                             if (index === -1) return;
                             const firstLetter = app.name.charAt(0).toUpperCase();
+                            const iconStyle = app.iconData ? `style="background-image: url('${app.iconData}'); background-size: cover; background-position: center;"` : '';
+                            const iconContent = app.iconData ? '' : firstLetter;
                             const card = document.createElement('div');
                             card.className = "app-card bg-white rounded-xl shadow-sm overflow-hidden flex flex-col group relative";
                             card.innerHTML = `
                                 <a href="${app.url}" data-index="${index}" data-name="${app.name}" class="app-link flex-grow p-4 flex flex-col items-center justify-center text-center cursor-pointer min-h-32">
-                                    <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 font-bold text-xl mb-3">${firstLetter}</div>
+                                    <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 font-bold text-xl mb-3" ${iconStyle}>${iconContent}</div>
                                     <p class="text-base font-semibold text-gray-800 w-full px-2">${app.name}</p>
                                 </a>
                                 <button data-index="${index}" class="edit-btn absolute top-2 right-10 h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all scale-75 group-hover:scale-100" title="Editar App">
@@ -387,23 +436,28 @@
             // --- Funções de Modal ---
             const openAddModal = () => {
                 editingAppIndex = null;
+                iconCleared = false;
                 modalTitle.textContent = "Adicionar Aplicativo";
                 addAppForm.reset();
                 appCredentialsContainer.innerHTML = '';
                 appCredentialsContainer.appendChild(addCredentialBtn);
                 appCredentialsContainer.classList.add('hidden');
+                removeIconBtn.classList.add('hidden');
                 addModal.classList.remove('invisible', 'opacity-0');
                 modalContent.classList.remove('scale-95', 'opacity-0');
             };
 
             const openAddModalForEdit = (index) => {
                 editingAppIndex = index;
+                iconCleared = false;
                 const app = apps[index];
                 modalTitle.textContent = "Editar Aplicativo";
                 addAppForm.appName.value = app.name;
                 addAppForm.appUrl.value = app.url;
                 addAppForm.appCategory.value = app.category;
                 addAppForm.appDesc.value = app.description || '';
+                addAppForm.appIconFile.value = '';
+                removeIconBtn.classList.toggle('hidden', !app.iconData);
                 appRequiresAuth.checked = app.requiresAuth;
                 appCredentialsContainer.innerHTML = '';
                 if (app.requiresAuth) {
@@ -493,13 +547,37 @@
             };
             
             // --- Funções de Manipulação de Eventos ---
-            const handleFormSubmit = (e) => {
+            const handleFormSubmit = async (e) => {
                 e.preventDefault();
+                const iconFile = e.target.appIconFile.files[0];
+
+                let iconData = editingAppIndex !== null ? (apps[editingAppIndex].iconData || '') : '';
+
+                if (iconCleared) {
+                    iconData = '';
+                }
+
+                if (iconFile) {
+                    if (iconFile.size > 2 * 1024 * 1024) {
+                        alert('Imagem muito grande. Use um arquivo até 2MB.');
+                        return;
+                    }
+                    try {
+                        iconData = await resizeImageToDataURL(iconFile, 256);
+                    } catch (uploadError) {
+                        console.error('Erro ao processar ícone:', uploadError);
+                        alert('Não foi possível processar a imagem. Tente novamente.');
+                        return;
+                    }
+                }
+
                 const newApp = {
+                    id: editingAppIndex !== null ? (apps[editingAppIndex].id || `app_${Date.now()}`) : `app_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
                     name: e.target.appName.value.trim(),
                     url: e.target.appUrl.value.trim(),
                     category: e.target.appCategory.value.trim(),
                     description: e.target.appDesc.value.trim(),
+                    iconData,
                     requiresAuth: e.target.appRequiresAuth.checked,
                     credentials: []
                 };
@@ -629,6 +707,12 @@
             
             appRequiresAuth.addEventListener('change', () => appCredentialsContainer.classList.toggle('hidden', !appRequiresAuth.checked));
             addCredentialBtn.addEventListener('click', () => addCredentialRow());
+
+            removeIconBtn.addEventListener('click', () => {
+                iconCleared = true;
+                addAppForm.appIconFile.value = '';
+                removeIconBtn.classList.add('hidden');
+            });
             
             appGrid.addEventListener('click', handleGridClick);
             backToDashboardBtn.addEventListener('click', handleBackToDashboard);
@@ -648,8 +732,8 @@
                         if (!docSnap.exists()) {
                             // O documento não existe, então criamos ele com os dados iniciais
                             const initialApps = [
-                                { name: 'Módulo de Estoque', url: './mrp_estoque.html', description: 'Sistema de gerenciamento de estoque (MRP).', category: 'Trabalho', requiresAuth: true, credentials: [{user: 'wellinton', pass: '123'}, {user: 'admin', pass: 'admin'}] },
-                                { name: 'Figma', url: 'https://figma.com', description: 'Ferramenta de design colaborativo.', category: 'Design', requiresAuth: false, credentials: [] },
+                                { id: `app_${Date.now()}_seed_1`, name: 'Módulo de Estoque', url: './mrp_estoque.html', description: 'Sistema de gerenciamento de estoque (MRP).', category: 'Trabalho', requiresAuth: true, credentials: [{user: 'wellinton', pass: '123'}, {user: 'admin', pass: 'admin'}] },
+                                { id: `app_${Date.now()}_seed_2`, name: 'Figma', url: 'https://figma.com', description: 'Ferramenta de design colaborativo.', category: 'Design', requiresAuth: false, credentials: [] },
                             ];
                             await setDoc(sharedDocRef, { apps: initialApps });
                         }
