@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://firebasestorage.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.gstatic.com; frame-src http: https: data: blob:;">
     <title>Painel de Aplicativos Interativo</title>
 
     <!-- Tailwind CSS -->
@@ -46,6 +47,7 @@
             width: 100%;
             height: 100%;
             border: none;
+            background: #0b1020;
         }
         #dashboardContainer header {
             background: rgba(255, 255, 255, 0.02);
@@ -178,7 +180,7 @@
             </button>
         </header>
         <div class="flex-grow overflow-hidden">
-            <iframe id="appFrame" title="Visualizador de Aplicativo"></iframe>
+            <iframe id="appFrame" title="Visualizador de Aplicativo" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
         </div>
     </div>
 
@@ -296,7 +298,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // --- INÍCIO DA CONFIGURAÇÃO DO FIREBASE ---
@@ -317,7 +319,7 @@
             db = getFirestore(app);
         } catch (error) {
             console.error("Erro na configuração do Firebase:", error);
-            alert("Erro fatal na configuração do Firebase. A aplicação não pode continuar.");
+            alert("Erro fatal na configuração do Firebase. A aplicação não pode continuar. Detalhes: " + (error?.message || error));
             document.getElementById('loadingOverlay').style.display = 'none';
         }
         // --- FIM DA CONFIGURAÇÃO DO FIREBASE ---
@@ -371,10 +373,22 @@
             let iconCleared = false;
             let isInViewer = false;
             const VIEWER_KEY = 'lastViewedAppId';
+            const allowedProtocols = ['http:', 'https:'];
             let userId = null;
             let unsubscribeFromFirestore = null;
             let collapsedCategories = {};
             const sharedDocRef = doc(db, "dashboards", "sharedPanel");
+
+            // Mapeia códigos do Firebase para mensagens amigáveis
+            const formatFirebaseError = (err) => {
+                const code = err?.code || '';
+                if (code.includes('auth/invalid-email')) return 'E-mail inválido.';
+                if (code.includes('auth/user-not-found') || code.includes('auth/wrong-password')) return 'Login falhou. Verifique e-mail e senha.';
+                if (code.includes('auth/too-many-requests')) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
+                if (code.includes('auth/unauthorized-domain')) return 'Domínio não autorizado no Firebase Authentication. Inclua o domínio atual na lista de domínios autorizados.';
+                if (code.includes('auth/network-request-failed') || code.includes('unavailable')) return 'Falha de rede. Verifique sua conexão ou bloqueios (CSP/proxy).';
+                return err?.message || 'Erro inesperado. Consulte o console para detalhes.';
+            };
 
             const ensureAppIds = () => {
                 let changed = false;
@@ -384,6 +398,18 @@
                     return { ...app, id: `app_${Date.now()}_${idx}_${Math.floor(Math.random() * 100000)}` };
                 });
                 return changed;
+            };
+
+            const isSafeUrl = (value) => {
+                if (!value) return false;
+                try {
+                    const u = new URL(value, location.href);
+                    if (u.protocol === 'http:' || u.protocol === 'https:') return true;
+                    if (value.startsWith('./') || value.startsWith('../') || value.startsWith('/')) return true;
+                    return false;
+                } catch (_) {
+                    return false;
+                }
             };
 
             const resizeImageToDataURL = (file, size = 256) => new Promise((resolve, reject) => {
@@ -418,7 +444,7 @@
                     await setDoc(sharedDocRef, { apps: apps });
                 } catch (error) {
                     console.error("Erro ao salvar no Firestore: ", error);
-                    alert("Não foi possível salvar as alterações. Verifique sua conexão e as regras de segurança do Firestore.");
+                    alert("Não foi possível salvar as alterações. " + formatFirebaseError(error));
                 }
             };
 
@@ -431,9 +457,6 @@
                         const changed = ensureAppIds();
                         if (changed) { saveAppsToFirestore(); }
                     } 
-                    // Removida a lógica 'else' para evitar sobrescrever dados existentes.
-                    // A criação inicial é tratada na função 'initializeAppWithFirestore'
-                    
                     renderApps();
                     restoreViewerIfNeeded();
                     
@@ -444,7 +467,7 @@
                     }, 300);
                 }, (error) => {
                     console.error("Erro ao ouvir dados do Firestore:", error);
-                    alert("Não foi possível carregar os dados. Verifique as regras de segurança do seu projeto Firebase.");
+                    alert("Não foi possível carregar os dados. " + formatFirebaseError(error));
                     loadingOverlay.style.display = 'none';
                 });
             };
@@ -659,6 +682,12 @@
                     iconData = '';
                 }
 
+                const appUrlValue = e.target.appUrl.value.trim();
+                if (!isSafeUrl(appUrlValue)) {
+                    alert('URL inválida. Use http(s) ou caminhos relativos seguros.');
+                    return;
+                }
+
                 if (iconFile) {
                     if (iconFile.size > 2 * 1024 * 1024) {
                         alert('Imagem muito grande. Use um arquivo até 2MB.');
@@ -676,7 +705,7 @@
                 const newApp = {
                     id: editingAppIndex !== null ? (apps[editingAppIndex].id || `app_${Date.now()}`) : `app_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
                     name: e.target.appName.value.trim(),
-                    url: e.target.appUrl.value.trim(),
+                    url: appUrlValue,
                     category: e.target.appCategory.value.trim(),
                     description: e.target.appDesc.value.trim(),
                     iconData,
@@ -706,6 +735,10 @@
             
             const launchApp = (index) => {
                 const app = apps[index];
+                if (!isSafeUrl(app.url)) {
+                    alert('URL do app bloqueada por segurança.');
+                    return;
+                }
                 appViewerTitle.textContent = app.name;
                 appFrame.src = app.url;
                 dashboardContainer.classList.add('hidden');
@@ -786,21 +819,26 @@
             // --- Lógica de Login/Logout ---
             const updateLoginStateUI = () => { document.body.classList.toggle('logged-in', isLoggedIn); };
 
-            const handleLogin = (e) => {
+            const handleLogin = async (e) => {
                 e.preventDefault();
-                if (loginForm.username.value === 'Wellinton' && loginForm.password.value === 'Wellinton7842') {
+                loginError.textContent = '';
+                try {
+                    await signInWithEmailAndPassword(auth, loginForm.username.value.trim(), loginForm.password.value.trim());
                     isLoggedIn = true;
                     sessionStorage.setItem('isUserLoggedIn', 'true');
                     updateLoginStateUI();
                     closeLoginModal();
-                } else {
-                    loginError.textContent = 'Usuário ou senha inválidos.';
+                } catch (err) {
+                    console.error('Erro de login:', err);
+                    loginError.textContent = formatFirebaseError(err);
                 }
             };
 
-            const handleLogout = () => {
+            const handleLogout = async () => {
+                try { await signOut(auth); } catch (err) { console.error('Erro ao sair:', err); }
                 isLoggedIn = false;
                 sessionStorage.removeItem('isUserLoggedIn');
+                sessionStorage.removeItem(VIEWER_KEY);
                 updateLoginStateUI();
             };
 
@@ -841,33 +879,33 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        
-                        // CORREÇÃO: Verifica se o documento existe antes de criar os dados padrão
                         const docSnap = await getDoc(sharedDocRef);
                         if (!docSnap.exists()) {
-                            // O documento não existe, então criamos ele com os dados iniciais
                             const initialApps = [
                                 { id: `app_${Date.now()}_seed_1`, name: 'Módulo de Estoque', url: './mrp_estoque.html', description: 'Sistema de gerenciamento de estoque (MRP).', category: 'Trabalho', requiresAuth: true, credentials: [{user: 'wellinton', pass: '123'}, {user: 'admin', pass: 'admin'}] },
                                 { id: `app_${Date.now()}_seed_2`, name: 'Figma', url: 'https://figma.com', description: 'Ferramenta de design colaborativo.', category: 'Design', requiresAuth: false, credentials: [] },
                             ];
                             await setDoc(sharedDocRef, { apps: initialApps });
                         }
-
-                        // Agora que garantimos que o documento existe, iniciamos o listener
                         setupFirestoreListener();
-                        isLoggedIn = sessionStorage.getItem('isUserLoggedIn') === 'true';
+                        isLoggedIn = true;
                         updateLoginStateUI();
+                        loadingOverlay.classList.add('opacity-0');
+                        setTimeout(() => {
+                            loadingOverlay.classList.add('hidden');
+                            dashboardContainer.classList.remove('invisible');
+                        }, 300);
+                    } else {
+                        isLoggedIn = false;
+                        updateLoginStateUI();
+                        loadingOverlay.classList.add('opacity-0');
+                        setTimeout(() => {
+                            loadingOverlay.classList.add('hidden');
+                            dashboardContainer.classList.remove('invisible');
+                            openLoginModal();
+                        }, 300);
                     }
                 });
-                
-                if (!auth.currentUser) {
-                    try {
-                        await signInAnonymously(auth);
-                    } catch (error) {
-                        console.error("Erro no login anônimo:", error);
-                        alert("Não foi possível conectar ao serviço. Tente recarregar a página.");
-                    }
-                }
             };
             
             if (db) {
