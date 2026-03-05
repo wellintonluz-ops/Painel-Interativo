@@ -374,8 +374,13 @@
             let isInViewer = false;
             const VIEWER_KEY = 'lastViewedAppId';
             const allowedProtocols = ['http:', 'https:'];
+            // Credenciais locais para edição (não dependem do Firebase Auth)
+            const LOCAL_EDITOR_USER = 'wellinton';
+            const LOCAL_EDITOR_PASS = 'wellinton7842';
+
             let userId = null;
             let unsubscribeFromFirestore = null;
+            let listenerInitialized = false;
             let collapsedCategories = {};
             const sharedDocRef = doc(db, "dashboards", "sharedPanel");
 
@@ -470,6 +475,12 @@
                     alert("Não foi possível carregar os dados. " + formatFirebaseError(error));
                     loadingOverlay.style.display = 'none';
                 });
+            };
+
+            const ensureFirestoreListener = () => {
+                if (listenerInitialized) return;
+                setupFirestoreListener();
+                listenerInitialized = true;
             };
 
             const restoreViewerIfNeeded = () => {
@@ -822,8 +833,22 @@
             const handleLogin = async (e) => {
                 e.preventDefault();
                 loginError.textContent = '';
+
+                const userInput = loginForm.username.value.trim();
+                const passInput = loginForm.password.value.trim();
+
+                // Primeiro, tenta credencial local para edição
+                if (userInput === LOCAL_EDITOR_USER && passInput === LOCAL_EDITOR_PASS) {
+                    isLoggedIn = true;
+                    sessionStorage.setItem('isUserLoggedIn', 'true');
+                    updateLoginStateUI();
+                    closeLoginModal();
+                    return;
+                }
+
+                // Se não for a credencial local, tenta Firebase Auth
                 try {
-                    await signInWithEmailAndPassword(auth, loginForm.username.value.trim(), loginForm.password.value.trim());
+                    await signInWithEmailAndPassword(auth, userInput, passInput);
                     isLoggedIn = true;
                     sessionStorage.setItem('isUserLoggedIn', 'true');
                     updateLoginStateUI();
@@ -887,7 +912,7 @@
                             ];
                             await setDoc(sharedDocRef, { apps: initialApps });
                         }
-                        setupFirestoreListener();
+                        ensureFirestoreListener();
                         isLoggedIn = true;
                         updateLoginStateUI();
                         loadingOverlay.classList.add('opacity-0');
@@ -898,11 +923,11 @@
                     } else {
                         isLoggedIn = false;
                         updateLoginStateUI();
+                        ensureFirestoreListener();
                         loadingOverlay.classList.add('opacity-0');
                         setTimeout(() => {
                             loadingOverlay.classList.add('hidden');
                             dashboardContainer.classList.remove('invisible');
-                            openLoginModal();
                         }, 300);
                     }
                 });
