@@ -382,6 +382,8 @@
             let unsubscribeFromFirestore = null;
             let listenerInitialized = false;
             let collapsedCategories = {};
+            let lastListenerUpdate = 0;
+            let listenerTimeout = null;
             const sharedDocRef = doc(db, "dashboards", "sharedPanel");
 
             // Mapeia códigos do Firebase para mensagens amigáveis
@@ -444,9 +446,10 @@
 
             // --- Funções de Dados (Firestore) ---
             const saveAppsToFirestore = async () => {
-                if (!auth.currentUser) return;
+                if (!isLoggedIn) return; // Só salva se logado (local ou Firebase)
                 try {
-                    await setDoc(sharedDocRef, { apps: apps });
+                    // Use merge: true para fazer merge, não sobrescrever
+                    await setDoc(sharedDocRef, { apps: apps }, { merge: true });
                 } catch (error) {
                     console.error("Erro ao salvar no Firestore: ", error);
                     alert("Não foi possível salvar as alterações. " + formatFirebaseError(error));
@@ -457,6 +460,24 @@
                 if (unsubscribeFromFirestore) unsubscribeFromFirestore();
                 
                 unsubscribeFromFirestore = onSnapshot(sharedDocRef, (docSnap) => {
+                    // Debounce: evita múltiplas atualizações em sequência
+                    const now = Date.now();
+                    if (now - lastListenerUpdate < 300) {
+                        if (listenerTimeout) clearTimeout(listenerTimeout);
+                        listenerTimeout = setTimeout(() => {
+                            lastListenerUpdate = Date.now();
+                            if (docSnap.exists() && docSnap.data().apps) {
+                                apps = docSnap.data().apps;
+                                const changed = ensureAppIds();
+                                if (changed) { saveAppsToFirestore(); }
+                            }
+                            renderApps();
+                            restoreViewerIfNeeded();
+                        }, 300);
+                        return;
+                    }
+                    lastListenerUpdate = now;
+                    
                     if (docSnap.exists() && docSnap.data().apps) {
                         apps = docSnap.data().apps;
                         const changed = ensureAppIds();
