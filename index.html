@@ -1,969 +1,1276 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://www.gstatic.com https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://firebasestorage.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.gstatic.com https://apis.google.com; frame-src http: https: data: blob:; upgrade-insecure-requests;">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta http-equiv="Permissions-Policy" content="geolocation=(), camera=(), microphone=()">
-    <title>Painel de Aplicativos Interativo</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://www.gstatic.com https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://firebasestorage.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.gstatic.com https://apis.google.com; frame-src http: https: data: blob:; upgrade-insecure-requests;">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="Permissions-Policy" content="geolocation=(), camera=(), microphone=()">
+<title>TBX Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset ──────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:          #060A12;
+  --sb:          #0A1020;
+  --sb-hover:    #0F1830;
+  --surface:     #0F1628;
+  --surface-2:   #172035;
+  --border:      rgba(255,255,255,0.06);
+  --border-2:    rgba(255,255,255,0.11);
+  --text:        #CBD5E1;
+  --text-bright: #F0F4FF;
+  --text-muted:  #4B5E7A;
+  --text-dim:    #7A8FA8;
+  --accent:      #3B82F6;
+  --accent-dim:  rgba(59,130,246,0.18);
+  --accent-glow: rgba(59,130,246,0.28);
+  --green:       #10B981;
+  --amber:       #F59E0B;
+  --danger:      #EF4444;
+  --sb-w:        260px;
+  --sb-w-col:    52px;
+  --top-h:       54px;
+  --r:           10px;
+  --r-sm:        7px;
+  --font-d:      'Space Grotesk', sans-serif;
+  --font-b:      'Inter', sans-serif;
+  --tr:          .22s cubic-bezier(.4,0,.2,1);
+}
+html, body { height: 100%; overflow: hidden; }
+body { font-family: var(--font-b); background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+/* scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
 
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+/* ── Loading overlay ────────────────────────────────────────── */
+#loadingOverlay {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  transition: opacity .3s ease;
+}
+#loadingOverlay.opacity-0 { opacity: 0; }
+#loadingOverlay.hidden { display: none; }
+.spinner {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.08);
+  border-top-color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-    <style>
-        :root {
-            --surface: #0f172a;
-            --surface-2: #111827;
-            --card: #0b1220;
-            --muted: #94a3b8;
-            --accent: #4f46e5;
-            --accent-2: #22c55e;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.08), transparent 30%),
-                        radial-gradient(circle at 80% 0%, rgba(34, 197, 94, 0.08), transparent 25%),
-                        #0b1020;
-            color: #e2e8f0;
-        }
-        #addAppModal, #appViewer, #deleteConfirmModal, #loginModal, #appLoginModal {
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-        .app-card {
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease;
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .app-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
-            border-color: rgba(79, 70, 229, 0.5);
-        }
-        #appFrame {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: #0b1020;
-        }
-        #dashboardContainer header {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-            border-radius: 16px;
-            padding: 18px 22px;
-            backdrop-filter: blur(6px);
-        }
-        #dashboardContainer main {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-            border-radius: 18px;
-            padding: 28px;
-        }
-        #appViewer header {
-            background: #0f172a;
-            color: #e2e8f0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        #appViewer button { color: #0f172a; }
-        #backToDashboardBtn {
-            background: #1f2937;
-            color: #e2e8f0;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        #backToDashboardBtn:hover { background: #111827; }
-        #dashboardContainer h1 { color: #f8fafc; }
-        #dashboardContainer p { color: var(--muted); }
-        #appGrid section { border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 10px; }
-        #appGrid section:first-child { border-top: none; padding-top: 0; }
-        #appGrid h2 { color: #cbd5f5; letter-spacing: 0.01em; }
-        .app-link { gap: 10px; }
-        .app-card .icon-shell {
-            height: 3.5rem;
-            width: 3.5rem;
-            border-radius: 14px;
-            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
-            color: #0f172a;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 20px rgba(0, 0, 0, 0.25);
-        }
-        .app-card .icon-shell[style*="background-image"] {
-            background-size: contain;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-color: #f8fafc;
-            border: 1px solid rgba(255, 255, 255, 0.35);
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
-        }
-        .app-card p { color: #0f172a !important; }
-        #addAppBtn { box-shadow: 0 12px 30px rgba(79, 70, 229, 0.35); }
-        #loginBtn { box-shadow: 0 12px 30px rgba(34, 197, 94, 0.28); }
-        #logoutBtn { box-shadow: 0 12px 30px rgba(248, 113, 113, 0.28); }
-        #modalContent, #loginModalContent, #appLoginModalContent, #deleteModalContent {
-            background: #0f172a;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        input, textarea {
-            background: rgba(255, 255, 255, 0.04);
-            color: #e2e8f0;
-        }
-        input::placeholder, textarea::placeholder { color: #94a3b8; }
-        label { color: #cbd5f5; }
-        .text-gray-500 { color: var(--muted) !important; }
-        .text-gray-800 { color: #e2e8f0 !important; }
-        .text-gray-900 { color: #f8fafc !important; }
-        /* Controle de visibilidade com base no login */
-        #addAppBtn, #logoutBtn, .delete-btn, .edit-btn { display: none; }
-        #loginBtn { display: flex; }
-        body.logged-in #addAppBtn,
-        body.logged-in #logoutBtn,
-        body.logged-in .delete-btn,
-        body.logged-in .edit-btn { display: flex; }
-        body.logged-in #loginBtn { display: none; }
-        /* Loading Spinner */
-        #loadingOverlay { transition: opacity 0.3s ease; }
-        .spinner { border-top-color: #4f46e5; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+/* ── Topbar ─────────────────────────────────────────────────── */
+#topbar {
+  height: var(--top-h);
+  background: var(--sb);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px 0 0;
+  flex-shrink: 0; position: relative; z-index: 30;
+}
+.logo-zone {
+  width: var(--sb-w); flex-shrink: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px;
+  border-right: 1px solid var(--border);
+  height: 100%;
+}
+.logo-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--accent), #1d4ed8);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-d); font-size: 13px; font-weight: 700; color: #fff;
+  flex-shrink: 0; box-shadow: 0 0 14px var(--accent-glow);
+}
+.logo-text { font-family: var(--font-d); font-weight: 700; font-size: 15px; color: var(--text-bright); letter-spacing: -.01em; }
+.logo-text span { color: var(--accent); }
+
+#searchWrap { flex: 1; max-width: 480px; position: relative; margin-left: 4px; }
+#searchInput {
+  width: 100%; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 7px 36px 7px 34px; color: var(--text-bright);
+  font-family: var(--font-b); font-size: 13.5px; outline: none;
+  transition: border-color var(--tr), box-shadow var(--tr);
+}
+#searchInput::placeholder { color: var(--text-muted); }
+#searchInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.s-ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.s-kbd {
+  position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  font-size: 10.5px; color: var(--text-muted); background: var(--surface-2);
+  border: 1px solid var(--border-2); border-radius: 4px; padding: 2px 6px;
+}
+
+.top-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.icon-btn {
+  width: 32px; height: 32px; border-radius: var(--r-sm);
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--tr), color var(--tr), border-color var(--tr);
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text-bright); border-color: var(--border-2); }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--r-sm);
+  font-family: var(--font-b); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--tr); border: none; outline: none; white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; box-shadow: 0 3px 12px var(--accent-dim); }
+.btn-primary:hover { background: #2563eb; box-shadow: 0 4px 18px var(--accent-glow); }
+.btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--text-bright); border-color: var(--border-2); }
+.btn-danger { background: rgba(239,68,68,.12); color: #fca5a5; border: 1px solid rgba(239,68,68,.22); }
+.btn-danger:hover { background: rgba(239,68,68,.22); }
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #1e40af, var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff; cursor: pointer;
+  border: 1.5px solid var(--border-2); flex-shrink: 0;
+}
+
+/* auth state visibility */
+#addAppBtn, #logoutBtn, .card-act-edit, .card-act-del { display: none; }
+#loginBtn { display: flex; }
+body.logged-in #addAppBtn, body.logged-in #logoutBtn,
+body.logged-in .card-act-edit, body.logged-in .card-act-del { display: flex; }
+body.logged-in #loginBtn { display: none; }
+/* viewer buttons always shown */
+body.authenticated #dashboardContainer { visibility: visible; }
+
+/* ── Shell ──────────────────────────────────────────────────── */
+#shell { display: flex; flex: 1; overflow: hidden; }
+#dashboardContainer { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+#sidebar {
+  width: var(--sb-w);
+  background: var(--sb);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  flex-shrink: 0; overflow: hidden;
+  transition: width var(--tr);
+}
+#sidebar.collapsed { width: var(--sb-w-col); }
+
+#sbScroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 0; }
+#sbScroll::-webkit-scrollbar { width: 3px; }
+#sbScroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+.sb-label {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted); padding: 0 14px; margin: 10px 0 4px;
+  white-space: nowrap; overflow: hidden;
+  transition: opacity var(--tr);
+}
+#sidebar.collapsed .sb-label { opacity: 0; }
+.sb-div { height: 1px; background: var(--border); margin: 6px 10px; }
+
+/* nav top */
+.nav-top {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 12px; margin: 1px 6px; border-radius: var(--r-sm);
+  cursor: pointer; color: var(--text-dim); font-size: 13px; font-weight: 500;
+  border: none; background: none; width: calc(100% - 12px); text-align: left;
+  transition: background var(--tr), color var(--tr); white-space: nowrap;
+}
+.nav-top:hover { background: var(--sb-hover); color: var(--text-bright); }
+.nav-top.active { background: var(--accent-dim); color: #93C5FD; }
+.nt-ico { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.nt-lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; transition: opacity var(--tr), width var(--tr); }
+#sidebar.collapsed .nt-lbl { opacity: 0; width: 0; pointer-events: none; }
+.nt-bdg {
+  font-size: 10.5px; font-weight: 600; color: var(--text-muted);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 1px 7px; flex-shrink: 0;
+  transition: opacity var(--tr);
+}
+#sidebar.collapsed .nt-bdg { opacity: 0; }
+.nav-top.active .nt-bdg { background: rgba(59,130,246,.2); color: #93C5FD; }
+
+/* category accordion */
+.cat-entry { position: relative; }
+.cat-header {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 12px; margin: 1px 6px; border-radius: var(--r-sm);
+  cursor: pointer; color: var(--text-dim); font-size: 13px; font-weight: 500;
+  border: none; background: none; width: calc(100% - 12px); text-align: left;
+  transition: background var(--tr), color var(--tr); white-space: nowrap; user-select: none;
+}
+.cat-header:hover { background: var(--sb-hover); color: var(--text-bright); }
+.cat-entry.open > .cat-header { color: var(--text-bright); }
+.ch-dot {
+  width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0;
+  transition: transform var(--tr);
+}
+.cat-header:hover .ch-dot { transform: scale(1.3); }
+.ch-lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; transition: opacity var(--tr), width var(--tr); }
+#sidebar.collapsed .ch-lbl { opacity: 0; width: 0; pointer-events: none; }
+.ch-cnt { font-size: 10px; color: var(--text-muted); transition: opacity var(--tr); }
+#sidebar.collapsed .ch-cnt { opacity: 0; }
+.ch-arr { color: var(--text-muted); transition: transform var(--tr), opacity var(--tr); flex-shrink: 0; }
+#sidebar.collapsed .ch-arr { opacity: 0; }
+.cat-entry.open .ch-arr { transform: rotate(90deg); }
+
+.cat-apps {
+  overflow: hidden; max-height: 0;
+  transition: max-height .28s cubic-bezier(.4,0,.2,1);
+  border-left: 1.5px solid var(--border);
+  margin-left: 16px;
+}
+.cat-entry.open .cat-apps { max-height: 2000px; }
+#sidebar.collapsed .cat-apps { max-height: 0 !important; }
+
+.app-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 12px 6px 10px; margin: 1px 6px 1px 0; border-radius: var(--r-sm);
+  cursor: pointer; color: var(--text-dim); font-size: 12.5px; font-weight: 500;
+  transition: background var(--tr), color var(--tr); white-space: nowrap; position: relative;
+}
+.app-item::before {
+  content: ''; position: absolute; left: -9px; top: 50%; transform: translateY(-50%);
+  width: 8px; height: 1.5px; background: rgba(255,255,255,0.08); border-radius: 2px;
+  transition: background var(--tr);
+}
+.app-item:hover { background: var(--sb-hover); color: var(--text-bright); }
+.app-item:hover::before { background: var(--item-color, var(--accent)); }
+.ai-mini {
+  width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-d); font-size: 8px; font-weight: 700; color: #fff;
+}
+.ai-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.ai-lock { flex-shrink: 0; opacity: .6; }
+
+/* sidebar footer */
+#sbFooter { border-top: 1px solid var(--border); padding: 10px; flex-shrink: 0; }
+.user-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 8px; border-radius: var(--r-sm);
+  cursor: default; transition: background var(--tr); overflow: hidden;
+}
+.user-info { flex: 1; min-width: 0; overflow: hidden; transition: opacity var(--tr), width var(--tr); }
+#sidebar.collapsed .user-info { opacity: 0; width: 0; pointer-events: none; }
+.user-name { font-size: 12.5px; font-weight: 600; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.sb-toggle-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  color: var(--text-dim); cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--tr), color var(--tr);
+}
+.sb-toggle-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.sb-toggle-btn svg { transition: transform var(--tr); }
+#sidebar.collapsed .sb-toggle-btn svg { transform: rotate(180deg); }
+.sb-toggle-lbl { transition: opacity var(--tr); }
+#sidebar.collapsed .sb-toggle-lbl { opacity: 0; width: 0; overflow: hidden; pointer-events: none; }
+
+/* ── Main ───────────────────────────────────────────────────── */
+#main { flex: 1; overflow-y: auto; overflow-x: hidden; background: var(--bg); }
+#main::-webkit-scrollbar { width: 5px; }
+#main::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+#contentArea { padding: 26px 30px; max-width: 1400px; }
+
+/* stats */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 26px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+}
+.stat-ico { width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.stat-val { font-family: var(--font-d); font-size: 20px; font-weight: 700; color: var(--text-bright); line-height: 1; }
+.stat-lbl { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+
+/* section */
+.sec-block { margin-bottom: 30px; }
+.sec-head {
+  display: flex; align-items: center; gap: 9px;
+  margin-bottom: 12px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-dot { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+.sec-title { font-family: var(--font-d); font-size: 13px; font-weight: 600; color: var(--text-dim); letter-spacing: .01em; }
+.sec-count {
+  font-size: 10.5px; font-weight: 600; color: var(--text-muted);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 1px 8px;
+}
+
+/* app grid */
+.app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
+
+/* app card */
+.app-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 18px 12px 14px; display: flex; flex-direction: column; align-items: center;
+  cursor: pointer; position: relative; overflow: hidden;
+  transition: transform var(--tr), border-color var(--tr), box-shadow var(--tr);
+}
+.app-card:hover { transform: translateY(-3px); border-color: var(--border-2); box-shadow: 0 10px 28px rgba(0,0,0,.35); }
+.card-ico {
+  width: 48px; height: 48px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-d); font-size: 18px; font-weight: 700; color: #fff;
+  margin-bottom: 11px; flex-shrink: 0;
+  background-size: cover; background-position: center;
+}
+.card-name { font-size: 12.5px; font-weight: 600; color: var(--text-bright); text-align: center; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-desc { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 3px; }
+.card-lock {
+  position: absolute; top: 7px; left: 7px; width: 18px; height: 18px; border-radius: 5px;
+  background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.25);
+  display: flex; align-items: center; justify-content: center; color: var(--amber);
+}
+.card-acts { position: absolute; top: 5px; right: 5px; display: flex; gap: 3px; opacity: 0; transition: opacity var(--tr); }
+.app-card:hover .card-acts { opacity: 1; }
+.ca {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--tr), color var(--tr); border: none; padding: 0;
+}
+.ca:hover { background: var(--accent); color: #fff; }
+.ca.del:hover { background: var(--danger); color: #fff; }
+
+/* empty */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 56px 24px; text-align: center; }
+.empty-state svg { opacity: .2; margin-bottom: 14px; }
+.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; }
+.empty-state p { font-size: 12.5px; color: var(--text-muted); }
+
+/* ── App Viewer ─────────────────────────────────────────────── */
+#appViewer {
+  position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+  background: #05080F; visibility: hidden; opacity: 0;
+  transition: opacity .25s, visibility .25s;
+}
+#appViewer.visible { visibility: visible; opacity: 1; }
+#viewerBar {
+  height: 50px; background: var(--sb); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; padding: 0 16px; flex-shrink: 0;
+}
+#viewerTitle { font-family: var(--font-d); font-size: 14px; font-weight: 600; color: var(--text-bright); }
+.viewer-url {
+  font-size: 11.5px; color: var(--text-muted); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px;
+  font-family: monospace; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#appFrame { flex: 1; border: none; background: #fff; }
+
+/* ── Modals ─────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  visibility: hidden; opacity: 0;
+  transition: opacity .2s, visibility .2s;
+}
+.modal-overlay.open { visibility: visible; opacity: 1; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border-2);
+  border-radius: 14px; width: 100%; max-width: 460px;
+  box-shadow: 0 28px 64px rgba(0,0,0,.55);
+  transform: scale(.96) translateY(8px); transition: transform .2s;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-overlay.open .modal { transform: scale(1) translateY(0); }
+.modal::-webkit-scrollbar { width: 4px; }
+.modal::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+.modal-header { padding: 20px 22px 0; display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-family: var(--font-d); font-size: 16px; font-weight: 700; color: var(--text-bright); }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.modal-close:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.modal-body { padding: 18px 22px 22px; }
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 5px; }
+.form-input, .form-textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border-2);
+  border-radius: var(--r-sm); padding: 8px 11px;
+  color: var(--text-bright); font-family: var(--font-b); font-size: 13.5px;
+  outline: none; transition: border-color var(--tr), box-shadow var(--tr);
+}
+.form-input::placeholder, .form-textarea::placeholder { color: var(--text-muted); }
+.form-input:focus, .form-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.form-textarea { resize: vertical; min-height: 60px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-check {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 9px 11px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.form-check input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+.form-check-lbl { font-size: 13px; font-weight: 500; color: var(--text-dim); }
+.form-hint { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
+.cred-row { display: flex; gap: 7px; align-items: center; margin-bottom: 7px; }
+.cred-row .form-input { flex: 1; font-size: 12.5px; padding: 6px 9px; }
+.cred-rm {
+  width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.cred-rm:hover { background: var(--danger); color: #fff; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid var(--border); margin-top: 4px; }
+
+/* icon upload */
+.file-label {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: var(--bg); border: 1px dashed var(--border-2);
+  border-radius: var(--r-sm); cursor: pointer; color: var(--text-muted); font-size: 12.5px;
+  transition: border-color var(--tr), color var(--tr);
+}
+.file-label:hover { border-color: var(--accent); color: var(--accent); }
+input[type=file] { display: none; }
+
+/* small centered modals */
+.modal-sm { max-width: 360px; text-align: center; }
+.modal-sm .modal-body { padding: 24px 22px 22px; }
+.modal-ico { width: 48px; height: 48px; border-radius: 13px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+.modal-ico.del { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.2); color: var(--danger); }
+.modal-sm p { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+.modal-sm .modal-footer { justify-content: center; }
+.login-ico-wrap { font-family: var(--font-d); font-size: 22px; font-weight: 700; color: #fff; }
+.err-msg { font-size: 12.5px; color: #fca5a5; text-align: center; min-height: 18px; margin-top: 4px; }
+
+/* Google login modal */
+.google-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 10px 16px; background: #fff; color: #333;
+  border: 1px solid #ddd; border-radius: var(--r-sm);
+  font-family: var(--font-b); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: background .15s, box-shadow .15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.google-btn:hover { background: #f8f8f8; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+
+/* ── Toast ───────────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(16px);
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  border-radius: var(--r-sm); padding: 9px 16px;
+  font-size: 13px; color: var(--text-bright);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  z-index: 110; opacity: 0; transition: all .22s; pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.ok { border-color: rgba(16,185,129,.4); color: #6ee7b7; }
+#toast.er { border-color: rgba(239,68,68,.4); color: #fca5a5; }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 860px) { #sidebar { display: none; } .logo-zone { width: auto; border: none; } .stats-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { #contentArea { padding: 18px 14px; } .app-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } .stats-row { grid-template-columns: 1fr 1fr; } }
+</style>
 </head>
-<body class="antialiased text-gray-800">
+<body>
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-white">
-        <div class="spinner h-12 w-12 rounded-full border-4 border-t-4 border-gray-200"></div>
-    </div>
+<!-- Loading -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
 
+<!-- Topbar -->
+<div id="topbar">
+  <div class="logo-zone">
+    <div class="logo-mark">T</div>
+    <span class="logo-text">TBX<span> Hub</span></span>
+  </div>
+  <div id="searchWrap">
+    <svg class="s-ico" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="searchInput" placeholder="Buscar app… (⌘K)" autocomplete="off">
+    <span class="s-kbd">⌘K</span>
+  </div>
+  <div class="top-right">
+    <button id="loginBtn" class="btn btn-primary" style="padding:6px 13px;font-size:12.5px;">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Login
+    </button>
+    <button id="addAppBtn" class="btn btn-primary" style="padding:6px 13px;font-size:12.5px;">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      Novo App
+    </button>
+    <button id="logoutBtn" class="btn btn-ghost" style="padding:6px 12px;font-size:12.5px;">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Sair
+    </button>
+    <div class="avatar" id="userAvatar" title="">W</div>
+  </div>
+</div>
 
-    <!-- Container do Painel Principal -->
-    <div id="dashboardContainer" class="min-h-screen p-4 sm:p-6 lg:p-8 invisible">
-        <div class="max-w-7xl mx-auto">
-            <header class="flex flex-col sm:flex-row items-center justify-between mb-8">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Meu Painel de Controle</h1>
-                    <p class="text-gray-500 mt-1">Acesse seus aplicativos em um só lugar.</p>
-                </div>
-                <div class="flex items-center space-x-4 mt-4 sm:mt-0">
-                     <button id="addAppBtn" class="w-full sm:w-auto items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                        Adicionar Novo App
-                    </button>
-                    <button id="loginBtn" class="w-full sm:w-auto items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
-                        Login
-                    </button>
-                    <button id="logoutBtn" class="w-full sm:w-auto items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                        Sair
-                    </button>
-                </div>
-            </header>
-            <main>
-                <div id="appGrid">
-                    <!-- Categorias e cartões de aplicativo aqui -->
-                </div>
-                <p id="emptyState" class="hidden text-center text-gray-500 mt-16 text-lg">Seu painel está vazio. Clique em "Adicionar Novo App" para começar!</p>
-            </main>
+<!-- Shell -->
+<div id="shell">
+  <div id="dashboardContainer" style="visibility:hidden;">
+    <!-- Sidebar -->
+    <nav id="sidebar">
+      <div id="sbScroll">
+        <div class="sb-label">Navegação</div>
+        <button class="nav-top active" data-filter="all">
+          <span class="nt-ico">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </span>
+          <span class="nt-lbl">Todos os Apps</span>
+          <span class="nt-bdg" id="countAll">0</span>
+        </button>
+        <div class="sb-div"></div>
+        <div class="sb-label">Categorias</div>
+        <div id="catNav"></div>
+      </div>
+      <div id="sbFooter">
+        <div class="user-row">
+          <div class="avatar" id="sbAvatar" style="width:28px;height:28px;font-size:11px;flex-shrink:0;">?</div>
+          <div class="user-info">
+            <div class="user-name" id="sbUserName">—</div>
+            <div class="user-role"><span class="status-dot"></span><span id="sbUserRole">Carregando…</span></div>
+          </div>
+          <button class="sb-toggle-btn" id="sbToggle" title="Recolher sidebar">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
         </div>
-    </div>
+      </div>
+    </nav>
 
-    <!-- Container do Visualizador de App (com iframe) -->
-    <div id="appViewer" class="fixed inset-0 z-40 flex flex-col bg-white invisible opacity-0">
-        <header class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-            <h2 id="appViewerTitle" class="text-xl font-bold text-gray-800"></h2>
-            <button id="backToDashboardBtn" class="flex items-center px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
-                Voltar ao Painel
-            </button>
-        </header>
-        <div class="flex-grow overflow-hidden">
-            <iframe id="appFrame" title="Visualizador de Aplicativo" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"></iframe>
+    <!-- Main -->
+    <main id="main">
+      <div id="contentArea">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-ico" style="background:rgba(59,130,246,.12)"><svg width="18" height="18" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div><div><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">Apps ativos</div></div></div>
+          <div class="stat-card"><div class="stat-ico" style="background:rgba(16,185,129,.12)"><svg width="18" height="18" fill="none" stroke="#10B981" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div><div class="stat-val" id="sCats">0</div><div class="stat-lbl">Categorias</div></div></div>
+          <div class="stat-card"><div class="stat-ico" style="background:rgba(245,158,11,.12)"><svg width="18" height="18" fill="none" stroke="#F59E0B" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="stat-val" id="sPriv">0</div><div class="stat-lbl">Restritos</div></div></div>
+          <div class="stat-card"><div class="stat-ico" style="background:rgba(139,92,246,.12)"><svg width="18" height="18" fill="none" stroke="#8B5CF6" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="stat-val" id="sLast" style="font-size:13px;line-height:1.4;">—</div><div class="stat-lbl">Último acesso</div></div></div>
         </div>
-    </div>
+        <div id="appArea"></div>
+      </div>
+    </main>
+  </div>
+</div>
 
-    <!-- Modals (Login, Add/Edit, Delete, App Login) -->
-    <!-- Modal de Login Principal -->
-    <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 invisible opacity-0">
-        <div id="loginModalContent" class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all scale-95 opacity-0">
-            <h1 class="text-3xl font-bold text-center text-gray-900 mb-6">Login</h1>
-            <div class="space-y-6">
-                <p id="loginError" class="text-sm text-center text-red-600 h-4"></p>
-                <button type="button" id="googleLoginBtn" class="w-full flex items-center justify-center gap-3 px-4 py-2 bg-white text-gray-800 font-semibold rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="h-5 w-5"><path fill="#EA4335" d="M24 9.5c3.14 0 5.95 1.08 8.17 2.86l6.09-6.09C34.46 3.09 29.5 1 24 1 14.82 1 7.07 6.48 3.69 14.19l7.09 5.51C12.43 13.67 17.73 9.5 24 9.5z"/><path fill="#4285F4" d="M46.52 24.5c0-1.64-.15-3.22-.43-4.75H24v9h12.67c-.55 2.97-2.2 5.48-4.68 7.17l7.19 5.59C43.21 37.28 46.52 31.33 46.52 24.5z"/><path fill="#FBBC05" d="M10.78 28.3A14.6 14.6 0 0 1 9.5 24c0-1.5.26-2.95.72-4.3L3.13 14.19A23.94 23.94 0 0 0 0 24c0 3.87.92 7.53 2.55 10.77l8.23-6.47z"/><path fill="#34A853" d="M24 47c5.5 0 10.12-1.82 13.49-4.95l-7.19-5.59c-1.99 1.34-4.54 2.13-6.3 2.13-6.27 0-11.57-4.17-13.22-9.7l-7.09 5.51C7.07 41.52 14.82 47 24 47z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-                    Entrar com Google
-                </button>
-                <div class="flex items-center justify-end">
-                    <button type="button" id="cancelLoginBtn" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">Cancelar</button>
-                </div>
-            </div>
+<!-- App Viewer -->
+<div id="appViewer">
+  <div id="viewerBar">
+    <button class="btn btn-ghost" id="backBtn" style="padding:5px 12px;font-size:12.5px;gap:5px;">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+      Voltar
+    </button>
+    <span id="viewerTitle"></span>
+    <span class="viewer-url" id="viewerUrl"></span>
+    <div style="margin-left:auto;display:flex;gap:7px">
+      <button class="icon-btn" id="viewerNewTab" title="Abrir em nova aba">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </button>
+    </div>
+  </div>
+  <iframe id="appFrame" title="Visualizador" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"></iframe>
+</div>
+
+<!-- Modal: Google Login -->
+<div class="modal-overlay" id="ovGLogin">
+  <div class="modal modal-sm" style="max-width:380px;">
+    <div class="modal-body" style="padding:32px 28px 28px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div class="logo-mark" style="margin:0 auto 12px;width:40px;height:40px;font-size:18px;">T</div>
+        <div class="modal-title" style="font-size:20px;">Bem-vindo ao TBX Hub</div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin-top:6px;">Acesso restrito a contas @grupotbx.com.br</p>
+      </div>
+      <p class="err-msg" id="gLoginError" style="margin-bottom:12px;"></p>
+      <button id="googleLoginBtn" class="google-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.14 0 5.95 1.08 8.17 2.86l6.09-6.09C34.46 3.09 29.5 1 24 1 14.82 1 7.07 6.48 3.69 14.19l7.09 5.51C12.43 13.67 17.73 9.5 24 9.5z"/><path fill="#4285F4" d="M46.52 24.5c0-1.64-.15-3.22-.43-4.75H24v9h12.67c-.55 2.97-2.2 5.48-4.68 7.17l7.19 5.59C43.21 37.28 46.52 31.33 46.52 24.5z"/><path fill="#FBBC05" d="M10.78 28.3A14.6 14.6 0 0 1 9.5 24c0-1.5.26-2.95.72-4.3L3.13 14.19A23.94 23.94 0 0 0 0 24c0 3.87.92 7.53 2.55 10.77l8.23-6.47z"/><path fill="#34A853" d="M24 47c5.5 0 10.12-1.82 13.49-4.95l-7.19-5.59c-1.99 1.34-4.54 2.13-6.3 2.13-6.27 0-11.57-4.17-13.22-9.7l-7.09 5.51C7.07 41.52 14.82 47 24 47z"/></svg>
+        Entrar com Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add/Edit App -->
+<div class="modal-overlay" id="ovAdd">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="mAddTitle">Novo Aplicativo</span>
+      <button class="modal-close" id="mAddClose"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <form id="addForm" autocomplete="off">
+        <div class="form-group"><label class="form-label">Nome do aplicativo</label><input class="form-input" id="fName" placeholder="Ex: Google Drive" required></div>
+        <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="fUrl" type="url" placeholder="https://..." required></div>
+        <div class="two-col">
+          <div class="form-group"><label class="form-label">Categoria</label><input class="form-input" id="fCat" placeholder="Ex: Produtividade" required></div>
+          <div class="form-group"><label class="form-label">Descrição (opcional)</label><input class="form-input" id="fDesc" placeholder="Breve descrição"></div>
         </div>
-    </div>
-
-    <!-- Modal de Login do App Específico -->
-    <div id="appLoginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 invisible opacity-0">
-        <div id="appLoginModalContent" class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all scale-95 opacity-0">
-            <h1 id="appLoginTitle" class="text-2xl font-bold text-center text-gray-900 mb-6">Acesso Restrito</h1>
-            <form id="appLoginForm" class="space-y-6">
-                <div>
-                    <label for="appUsername" class="text-sm font-medium text-gray-700">Usuário do App</label>
-                    <input id="appUsername" name="appUsername" type="text" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Digite o usuário">
-                </div>
-                <div>
-                    <label for="appPassword" class="text-sm font-medium text-gray-700">Senha do App</label>
-                    <input id="appPassword" name="appPassword" type="password" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Digite a senha">
-                </div>
-                <p id="appLoginError" class="text-sm text-center text-red-600 h-4"></p>
-                <div class="flex items-center justify-end space-x-4">
-                     <button type="button" id="cancelAppLoginBtn" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors">
-                        Acessar
-                    </button>
-                </div>
-            </form>
+        <div class="form-group">
+          <label class="form-label">Ícone (opcional)</label>
+          <label class="file-label" for="fIcon">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span id="fIconLabel">Selecionar imagem (máx. 2MB)</span>
+          </label>
+          <input type="file" id="fIcon" accept="image/*">
+          <button type="button" id="fIconRemove" class="btn btn-ghost" style="display:none;margin-top:6px;padding:4px 10px;font-size:11.5px;">Remover ícone</button>
         </div>
-    </div>
-
-    <!-- Modal para Adicionar/Editar App -->
-    <div id="addAppModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 invisible opacity-0 overflow-y-auto p-4">
-        <div id="modalContent" class="bg-white rounded-xl shadow-2xl p-6 sm:p-8 w-11/12 max-w-lg transform transition-all scale-95 opacity-0 my-8">
-            <h2 id="modalTitle" class="text-2xl font-bold mb-6">Adicionar Aplicativo</h2>
-            <form id="addAppForm">
-                <div class="mb-4">
-                    <label for="appName" class="block text-sm font-medium text-gray-700 mb-1">Nome do App</label>
-                    <input type="text" id="appName" name="appName" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: Ferramenta de Design" required>
-                </div>
-                <div class="mb-4">
-                    <label for="appUrl" class="block text-sm font-medium text-gray-700 mb-1">URL do App</label>
-                    <input type="url" id="appUrl" name="appUrl" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="./meu_app.html" required>
-                </div>
-                <div class="mb-4">
-                    <label for="appCategory" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                    <input type="text" id="appCategory" name="appCategory" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: Trabalho, Design" required>
-                </div>
-                 <div class="mb-4">
-                    <label for="appDesc" class="block text-sm font-medium text-gray-700 mb-1">Descrição (Opcional)</label>
-                    <textarea id="appDesc" name="appDesc" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Uma breve descrição do que o app faz"></textarea>
-                </div>
-                <div class="mb-4">
-                    <label for="appIconFile" class="block text-sm font-medium text-gray-700 mb-1">Ícone do App (Opcional)</label>
-                    <input type="file" id="appIconFile" name="appIconFile" accept="image/*" class="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                    <div class="flex items-center justify-between mt-1">
-                        <p class="text-xs text-gray-500">Aceita qualquer tamanho; convertemos para 256x256 automaticamente. Se não escolher, usamos o ícone atual ou a letra inicial.</p>
-                        <button type="button" id="removeIconBtn" class="hidden text-xs font-semibold text-red-600 hover:text-red-700">Remover ícone</button>
-                    </div>
-                </div>
-                <div class="mb-6 space-y-2">
-                    <div class="flex items-center">
-                        <input type="checkbox" id="appRequiresAuth" name="appRequiresAuth" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                        <label for="appRequiresAuth" class="ml-2 block text-sm font-medium text-gray-800">Requer Login Específico?</label>
-                    </div>
-                    <div id="appCredentialsContainer" class="hidden space-y-3 pt-3 pl-3 border-l-2 border-gray-200">
-                        <!-- Credential rows will be inserted here -->
-                        <button type="button" id="addCredentialBtn" class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center">
-                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                           Adicionar Credencial
-                        </button>
-                    </div>
-                </div>
-                <div class="flex items-center justify-end space-x-4">
-                    <button type="button" id="cancelBtn" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors">Salvar App</button>
-                </div>
-            </form>
+        <div class="form-group"><label class="form-check"><input type="checkbox" id="fAuth"><span class="form-check-lbl">Requer login específico</span></label></div>
+        <div id="credsWrap" style="display:none;margin-bottom:14px;">
+          <div class="form-label" style="margin-bottom:7px;">Credenciais de acesso</div>
+          <div id="credsList"></div>
+          <button type="button" class="btn btn-ghost" id="addCredBtn" style="padding:5px 11px;font-size:12px;margin-top:3px;">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Adicionar credencial
+          </button>
         </div>
-    </div>
-
-    <!-- Modal de Confirmação de Exclusão -->
-    <div id="deleteConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 invisible opacity-0">
-        <div id="deleteModalContent" class="bg-white rounded-xl shadow-2xl p-6 sm:p-8 w-11/12 max-w-md transform transition-all scale-95 opacity-0">
-            <h2 class="text-2xl font-bold mb-4">Confirmar Exclusão</h2>
-            <p id="deleteModalText" class="text-gray-600 mb-6">Você tem certeza que deseja remover este aplicativo?</p>
-            <div class="flex items-center justify-end space-x-4">
-                <button type="button" id="cancelDeleteBtn" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">Cancelar</button>
-                <button type="button" id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-colors">Excluir</button>
-            </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="mAddCancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar App</button>
         </div>
+      </form>
     </div>
+  </div>
+</div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+<!-- Modal: Delete -->
+<div class="modal-overlay" id="ovDel">
+  <div class="modal modal-sm">
+    <div class="modal-body">
+      <div class="modal-ico del"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></div>
+      <div class="modal-title" style="margin-bottom:8px;">Remover aplicativo?</div>
+      <p id="delText">Esta ação não pode ser desfeita.</p>
+      <div class="modal-footer"><button class="btn btn-ghost" id="delCancel">Cancelar</button><button class="btn btn-danger" id="delConfirm">Remover</button></div>
+    </div>
+  </div>
+</div>
 
-        // --- INÍCIO DA CONFIGURAÇÃO DO FIREBASE ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCbLj765BU-TaE0GSsC3CCsCt4Wrgf0nyU",
-            authDomain: "painel-interativo-a72ab.firebaseapp.com",
-            projectId: "painel-interativo-a72ab",
-            storageBucket: "painel-interativo-a72ab.appspot.com",
-            messagingSenderId: "934583256105",
-            appId: "1:934583256105:web:034fb795d11a5c116ac838",
-            measurementId: "G-4T3FTKT0K3"
-        };
-        
-        let app, auth, db;
-        try {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-        } catch (error) {
-            console.error("Erro na configuração do Firebase:", error);
-            alert("Erro fatal na configuração do Firebase. A aplicação não pode continuar. Detalhes: " + (error?.message || error));
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-        // --- FIM DA CONFIGURAÇÃO DO FIREBASE ---
+<!-- Modal: App Login -->
+<div class="modal-overlay" id="ovAppLogin">
+  <div class="modal modal-sm">
+    <div class="modal-body">
+      <div class="modal-ico login-ico-wrap" id="appLoginIco" style="background:var(--accent);width:48px;height:48px;border-radius:13px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:20px;font-weight:700;color:#fff;"></div>
+      <div class="modal-title" id="appLoginAppName" style="margin-bottom:4px;"></div>
+      <p style="margin-bottom:16px;">Insira as credenciais para acessar este app.</p>
+      <form id="appLoginForm" autocomplete="off" style="text-align:left;">
+        <div class="form-group"><label class="form-label">Usuário</label><input class="form-input" id="alUser" placeholder="Usuário" required></div>
+        <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="alPass" type="password" placeholder="Senha" required></div>
+        <p class="err-msg" id="alErr"></p>
+        <div class="modal-footer"><button type="button" class="btn btn-ghost" id="alCancel">Cancelar</button><button type="submit" class="btn btn-primary">Entrar</button></div>
+      </form>
+    </div>
+  </div>
+</div>
 
+<div id="toast"></div>
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- Seletores de Elementos ---
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            const dashboardContainer = document.getElementById('dashboardContainer');
-            const loginModal = document.getElementById('loginModal');
-            const loginModalContent = document.getElementById('loginModalContent');
-            const loginError = document.getElementById('loginError');
-            const loginBtn = document.getElementById('loginBtn');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const cancelLoginBtn = document.getElementById('cancelLoginBtn');
-            const appLoginModal = document.getElementById('appLoginModal');
-            const appLoginModalContent = document.getElementById('appLoginModalContent');
-            const appLoginForm = document.getElementById('appLoginForm');
-            const appLoginTitle = document.getElementById('appLoginTitle');
-            const appLoginError = document.getElementById('appLoginError');
-            const cancelAppLoginBtn = document.getElementById('cancelAppLoginBtn');
-            const appGrid = document.getElementById('appGrid');
-            const addAppBtn = document.getElementById('addAppBtn');
-            const emptyState = document.getElementById('emptyState');
-            const addModal = document.getElementById('addAppModal');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalContent = document.getElementById('modalContent');
-            const cancelBtn = document.getElementById('cancelBtn');
-            const addAppForm = document.getElementById('addAppForm');
-            const removeIconBtn = document.getElementById('removeIconBtn');
-            const appRequiresAuth = document.getElementById('appRequiresAuth');
-            const appCredentialsContainer = document.getElementById('appCredentialsContainer');
-            const addCredentialBtn = document.getElementById('addCredentialBtn');
-            const appViewer = document.getElementById('appViewer');
-            const appViewerTitle = document.getElementById('appViewerTitle');
-            const appFrame = document.getElementById('appFrame');
-            const backToDashboardBtn = document.getElementById('backToDashboardBtn');
-            const deleteConfirmModal = document.getElementById('deleteConfirmModal');
-            const deleteModalContent = document.getElementById('deleteModalContent');
-            const deleteModalText = document.getElementById('deleteModalText');
-            const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+<!-- Firebase -->
+<script type="module">
+import { initializeApp }       from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut }
+                                from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot }
+                                from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-            // --- Estado da Aplicação ---
-            let apps = [];
-            let indexToDelete = null;
-            let editingAppIndex = null;
-            let appToOpenAfterLogin = null;
-            let isLoggedIn = false;     // pode editar
-            let isAuthenticated = false; // pode visualizar
-            let iconCleared = false;
-            let isInViewer = false;
-            const VIEWER_KEY = 'lastViewedAppId';
-            const allowedProtocols = ['http:', 'https:'];
-            const ALLOWED_DOMAIN = 'grupotbx.com.br';
-            const EDITOR_EMAIL = 'wellinton.luz@grupotbx.com.br';
+/* ── Firebase config ────────────────────────────────────────── */
+const firebaseConfig = {
+  apiKey:            "AIzaSyCbLj765BU-TaE0GSsC3CCsCt4Wrgf0nyU",
+  authDomain:        "painel-interativo-a72ab.firebaseapp.com",
+  projectId:         "painel-interativo-a72ab",
+  storageBucket:     "painel-interativo-a72ab.appspot.com",
+  messagingSenderId: "934583256105",
+  appId:             "1:934583256105:web:034fb795d11a5c116ac838",
+  measurementId:     "G-4T3FTKT0K3"
+};
 
-            let userId = null;
-            let unsubscribeFromFirestore = null;
-            let listenerInitialized = false;
-            let collapsedCategories = {};
-            let lastListenerUpdate = 0;
-            let listenerTimeout = null;
-            const sharedDocRef = doc(db, "dashboards", "sharedPanel");
+let fbApp, auth, db;
+try {
+  fbApp = initializeApp(firebaseConfig);
+  auth  = getAuth(fbApp);
+  db    = getFirestore(fbApp);
+} catch (err) {
+  console.error("Firebase init error:", err);
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
 
-            // Mapeia códigos do Firebase para mensagens amigáveis
-            const formatFirebaseError = (err) => {
-                const code = err?.code || '';
-                if (code.includes('auth/invalid-email')) return 'E-mail inválido.';
-                if (code.includes('auth/user-not-found') || code.includes('auth/wrong-password')) return 'Login falhou. Verifique e-mail e senha.';
-                if (code.includes('auth/too-many-requests')) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
-                if (code.includes('auth/unauthorized-domain')) return 'Domínio não autorizado no Firebase Authentication. Inclua o domínio atual na lista de domínios autorizados.';
-                if (code.includes('auth/network-request-failed') || code.includes('unavailable')) return 'Falha de rede. Verifique sua conexão ou bloqueios (CSP/proxy).';
-                return err?.message || 'Erro inesperado. Consulte o console para detalhes.';
-            };
+/* ── Constants ───────────────────────────────────────────────── */
+const ALLOWED_DOMAIN = 'grupotbx.com.br';
+const EDITOR_EMAIL   = 'wellinton.luz@grupotbx.com.br';
+const VIEWER_KEY     = 'lastViewedAppId';
+const sharedDocRef   = doc(db, "dashboards", "sharedPanel");
 
-            const ensureAppIds = () => {
-                let changed = false;
-                apps = apps.map((app, idx) => {
-                    if (app.id) return app;
-                    changed = true;
-                    return { ...app, id: `app_${Date.now()}_${idx}_${Math.floor(Math.random() * 100000)}` };
-                });
-                return changed;
-            };
+/* ── Palette ─────────────────────────────────────────────────── */
+const PAL = ['#3B82F6','#8B5CF6','#EC4899','#F97316','#10B981',
+             '#06B6D4','#EAB308','#6366F1','#84CC16','#14B8A6','#F43F5E'];
+const catPalMap = {};
+const appColor  = n  => PAL[n.charCodeAt(0) % PAL.length];
+const catColor  = c  => { if (!catPalMap[c]) catPalMap[c] = PAL[Object.keys(catPalMap).length % PAL.length]; return catPalMap[c]; };
 
-            const isSafeUrl = (value) => {
-                if (!value) return false;
-                try {
-                    const u = new URL(value, location.href);
-                    if (u.protocol === 'http:' || u.protocol === 'https:') return true;
-                    if (value.startsWith('./') || value.startsWith('../') || value.startsWith('/')) return true;
-                    return false;
-                } catch (_) {
-                    return false;
-                }
-            };
+/* ── State ───────────────────────────────────────────────────── */
+let apps        = [];
+let editId      = null;
+let deleteIdx   = null;
+let loginIdx    = null;
+let isLoggedIn  = false;
+let isAuth      = false;
+let isInViewer  = false;
+let iconCleared = false;
+let iconData64  = null;
+let activeFilter = 'all';
+let searchQ      = '';
+let openCats     = {};
+let sbCollapsed  = false;
+let listenerOn   = false;
+let unsub        = null;
+let lastUpdate   = 0;
+let debTimer     = null;
+let userId       = null;
 
-            const resizeImageToDataURL = (file, size = 256) => new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = size;
-                        canvas.height = size;
-                        const ctx = canvas.getContext('2d');
-                        const scale = Math.max(size / img.width, size / img.height); // cover
-                        const w = img.width * scale;
-                        const h = img.height * scale;
-                        const dx = (size - w) / 2;
-                        const dy = (size - h) / 2;
-                        ctx.clearRect(0, 0, size, size);
-                        ctx.drawImage(img, dx, dy, w, h);
-                        resolve(canvas.toDataURL('image/png', 0.92));
-                    };
-                    img.onerror = reject;
-                    img.src = reader.result;
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+/* ── Helpers ─────────────────────────────────────────────────── */
+const $  = id => document.getElementById(id);
+const $toast = $('toast');
+let toastT;
+function toast(msg, type='') {
+  clearTimeout(toastT);
+  $toast.textContent = msg; $toast.className = 'show ' + type;
+  toastT = setTimeout(() => $toast.className = '', 2800);
+}
 
-            // --- Funções de Dados (Firestore) ---
-            const saveAppsToFirestore = async () => {
-                if (!isLoggedIn) return; // Só salva se logado (local ou Firebase)
-                try {
-                    // Use merge: true para fazer merge, não sobrescrever
-                    await setDoc(sharedDocRef, { apps: apps }, { merge: true });
-                } catch (error) {
-                    console.error("Erro ao salvar no Firestore: ", error);
-                    alert("Não foi possível salvar as alterações. " + formatFirebaseError(error));
-                }
-            };
+const openOv  = id => $(id).classList.add('open');
+const closeOv = id => $(id).classList.remove('open');
+['ovGLogin','ovAdd','ovDel','ovAppLogin'].forEach(id =>
+  $(id).addEventListener('click', e => { if (e.target === $(id)) closeOv(id); }));
 
-            const setupFirestoreListener = () => {
-                if (unsubscribeFromFirestore) unsubscribeFromFirestore();
-                
-                unsubscribeFromFirestore = onSnapshot(sharedDocRef, (docSnap) => {
-                    // Debounce: evita múltiplas atualizações em sequência
-                    const now = Date.now();
-                    if (now - lastListenerUpdate < 300) {
-                        if (listenerTimeout) clearTimeout(listenerTimeout);
-                        listenerTimeout = setTimeout(() => {
-                            lastListenerUpdate = Date.now();
-                            if (docSnap.exists() && docSnap.data().apps) {
-                                apps = docSnap.data().apps;
-                                const changed = ensureAppIds();
-                                if (changed) { saveAppsToFirestore(); }
-                            }
-                            renderApps();
-                            restoreViewerIfNeeded();
-                        }, 300);
-                        return;
-                    }
-                    lastListenerUpdate = now;
-                    
-                    if (docSnap.exists() && docSnap.data().apps) {
-                        apps = docSnap.data().apps;
-                        const changed = ensureAppIds();
-                        if (changed) { saveAppsToFirestore(); }
-                    } 
-                    renderApps();
-                    restoreViewerIfNeeded();
-                    
-                    if (isAuthenticated) {
-                        loadingOverlay.classList.add('opacity-0');
-                        setTimeout(() => {
-                            loadingOverlay.classList.add('hidden');
-                            dashboardContainer.classList.remove('invisible');
-                        }, 300);
-                    }
-                }, (error) => {
-                    console.error("Erro ao ouvir dados do Firestore:", error);
-                    alert("Não foi possível carregar os dados. " + formatFirebaseError(error));
-                    loadingOverlay.style.display = 'none';
-                });
-            };
+const isSafeUrl = v => {
+  if (!v) return false;
+  try {
+    const u = new URL(v, location.href);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return true;
+    if (v.startsWith('./') || v.startsWith('../') || v.startsWith('/')) return true;
+  } catch(_) {}
+  return false;
+};
 
-            const ensureFirestoreListener = () => {
-                if (listenerInitialized) return;
-                setupFirestoreListener();
-                listenerInitialized = true;
-            };
+const ensureIds = () => {
+  let changed = false;
+  apps = apps.map((a, i) => {
+    if (a.id) return a;
+    changed = true;
+    return { ...a, id: `app_${Date.now()}_${i}_${Math.floor(Math.random()*100000)}` };
+  });
+  return changed;
+};
 
-            const restoreViewerIfNeeded = () => {
-                if (isInViewer) return;
-                const storedId = sessionStorage.getItem(VIEWER_KEY);
-                if (!storedId) return;
-                const idx = apps.findIndex(a => a.id === storedId);
-                if (idx === -1) {
-                    sessionStorage.removeItem(VIEWER_KEY);
-                    return;
-                }
-                const app = apps[idx];
-                if (app.requiresAuth) {
-                    sessionStorage.removeItem(VIEWER_KEY);
-                    return;
-                }
-                launchApp(idx);
-            };
+const fmtError = err => {
+  const c = err?.code || '';
+  if (c.includes('auth/invalid-email'))      return 'E-mail inválido.';
+  if (c.includes('auth/user-not-found') || c.includes('auth/wrong-password')) return 'Login falhou.';
+  if (c.includes('auth/too-many-requests'))  return 'Muitas tentativas. Aguarde.';
+  if (c.includes('auth/unauthorized-domain')) return 'Domínio não autorizado no Firebase.';
+  if (c.includes('auth/network-request-failed') || c.includes('unavailable')) return 'Falha de rede.';
+  return err?.message || 'Erro inesperado.';
+};
 
-            const renderApps = () => {
-                appGrid.innerHTML = ''; 
-                if (apps.length === 0) {
-                    emptyState.classList.remove('hidden');
-                    appGrid.className = '';
-                } else {
-                    emptyState.classList.add('hidden');
-                    appGrid.className = 'space-y-12';
+const resizeImg = (file, size=256) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      const scale = Math.max(size/img.width, size/img.height);
+      const w = img.width*scale, h = img.height*scale;
+      ctx.drawImage(img, (size-w)/2, (size-h)/2, w, h);
+      res(c.toDataURL('image/png', 0.92));
+    };
+    img.onerror = rej;
+    img.src = r.result;
+  };
+  r.onerror = rej;
+  r.readAsDataURL(file);
+});
 
-                    const appsByCategory = apps.reduce((acc, app) => {
-                        const category = app.category || 'Sem Categoria';
-                        if (!acc[category]) { acc[category] = []; }
-                        acc[category].push(app);
-                        return acc;
-                    }, {});
+/* ── Auth UI ─────────────────────────────────────────────────── */
+function updateAuthUI() {
+  document.body.classList.toggle('logged-in',   isLoggedIn);
+  document.body.classList.toggle('authenticated', isAuth);
+}
 
-                    const sortedCategories = Object.keys(appsByCategory).sort();
+function setUserInfo(user) {
+  if (!user) {
+    $('sbUserName').textContent  = '—';
+    $('sbUserRole').textContent  = '';
+    $('sbAvatar').textContent    = '?';
+    $('userAvatar').textContent  = '?';
+    $('userAvatar').title        = '';
+    return;
+  }
+  const name   = user.displayName || user.email.split('@')[0];
+  const letter = name.charAt(0).toUpperCase();
+  $('sbUserName').textContent  = name;
+  $('sbUserRole').textContent  = isLoggedIn ? 'Editor' : 'Visualizador';
+  $('sbAvatar').textContent    = letter;
+  $('userAvatar').textContent  = letter;
+  $('userAvatar').title        = user.email;
+}
 
-                    sortedCategories.forEach(category => {
-                        if (collapsedCategories[category] === undefined) collapsedCategories[category] = true;
-                        const isCollapsed = !!collapsedCategories[category];
+/* ── Firestore ───────────────────────────────────────────────── */
+async function saveToFirestore() {
+  if (!isLoggedIn) return;
+  try { await setDoc(sharedDocRef, { apps }, { merge: true }); }
+  catch(e) { console.error(e); toast('Erro ao salvar: ' + fmtError(e), 'er'); }
+}
 
-                        const categorySection = document.createElement('section');
-                        const categoryHeader = document.createElement('button');
-                        categoryHeader.type = 'button';
-                        categoryHeader.className = 'category-toggle w-full flex items-center justify-between mb-3';
-                        categoryHeader.dataset.category = category;
-                        categoryHeader.innerHTML = `
-                            <span class="text-2xl font-bold text-gray-800 capitalize">${category}</span>
-                            <svg class="h-5 w-5 text-gray-500 transition-transform ${isCollapsed ? '-rotate-90' : ''}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
-                        `;
-                        categorySection.appendChild(categoryHeader);
+function setupListener() {
+  if (unsub) unsub();
+  unsub = onSnapshot(sharedDocRef, snap => {
+    const now = Date.now();
+    const process = () => {
+      lastUpdate = Date.now();
+      if (snap.exists() && snap.data().apps) {
+        apps = snap.data().apps;
+        if (ensureIds()) saveToFirestore();
+      }
+      renderGrid(); renderSidebar();
+      restoreViewer();
+      if (isAuth) showDashboard();
+    };
+    if (now - lastUpdate < 300) {
+      clearTimeout(debTimer);
+      debTimer = setTimeout(process, 300);
+    } else { process(); }
+  }, err => {
+    console.error(err);
+    toast('Erro ao carregar dados: ' + fmtError(err), 'er');
+    $('loadingOverlay').style.display = 'none';
+  });
+}
 
-                        const categoryGrid = document.createElement('div');
-                        categoryGrid.className = `grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 ${isCollapsed ? 'hidden' : ''}`;
+function ensureListener() {
+  if (listenerOn) return;
+  setupListener();
+  listenerOn = true;
+}
 
-                        appsByCategory[category].forEach((app) => {
-                            const index = apps.findIndex(originalApp => originalApp.id === app.id);
-                            if (index === -1) return;
-                            const firstLetter = app.name.charAt(0).toUpperCase();
-                            const iconStyle = app.iconData ? `style="background-image: url('${app.iconData}'); background-size: cover; background-position: center;"` : '';
-                            const iconContent = app.iconData ? '' : firstLetter;
-                            const card = document.createElement('div');
-                            card.className = "app-card bg-white rounded-xl shadow-sm overflow-hidden flex flex-col group relative";
-                            card.innerHTML = `
-                                <a href="${app.url}" data-index="${index}" data-name="${app.name}" class="app-link flex-grow p-4 flex flex-col items-center justify-center text-center cursor-pointer min-h-32">
-                                    <div class="flex-shrink-0 icon-shell flex items-center justify-center font-bold text-xl mb-3" ${iconStyle}>${iconContent}</div>
-                                    <p class="text-base font-semibold text-gray-800 w-full px-2">${app.name}</p>
-                                </a>
-                                <button data-index="${index}" class="edit-btn absolute top-2 right-10 h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all scale-75 group-hover:scale-100" title="Editar App">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <button data-index="${index}" class="delete-btn absolute top-2 right-2 h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-gray-500 opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all scale-75 group-hover:scale-100" title="Remover App">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            `;
-                            categoryGrid.appendChild(card);
-                        });
-                        categorySection.appendChild(categoryGrid);
-                        appGrid.appendChild(categorySection);
-                    });
+function showDashboard() {
+  $('loadingOverlay').classList.add('opacity-0');
+  setTimeout(() => {
+    $('loadingOverlay').classList.add('hidden');
+    $('dashboardContainer').style.visibility = 'visible';
+  }, 300);
+}
 
-                    if (isInViewer) {
-                        dashboardContainer.classList.add('hidden');
-                        appViewer.classList.remove('invisible', 'opacity-0');
-                    }
-                }
-            };
-            
-            // --- Funções de Modal ---
-            const openAddModal = () => {
-                editingAppIndex = null;
-                iconCleared = false;
-                modalTitle.textContent = "Adicionar Aplicativo";
-                addAppForm.reset();
-                appCredentialsContainer.innerHTML = '';
-                appCredentialsContainer.appendChild(addCredentialBtn);
-                appCredentialsContainer.classList.add('hidden');
-                removeIconBtn.classList.add('hidden');
-                addModal.classList.remove('invisible', 'opacity-0');
-                modalContent.classList.remove('scale-95', 'opacity-0');
-            };
+/* ── Google Login ────────────────────────────────────────────── */
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: 'select_account' });
 
-            const openAddModalForEdit = (index) => {
-                editingAppIndex = index;
-                iconCleared = false;
-                const app = apps[index];
-                modalTitle.textContent = "Editar Aplicativo";
-                addAppForm.appName.value = app.name;
-                addAppForm.appUrl.value = app.url;
-                addAppForm.appCategory.value = app.category;
-                addAppForm.appDesc.value = app.description || '';
-                addAppForm.appIconFile.value = '';
-                removeIconBtn.classList.toggle('hidden', !app.iconData);
-                appRequiresAuth.checked = app.requiresAuth;
-                appCredentialsContainer.innerHTML = '';
-                if (app.requiresAuth) {
-                    appCredentialsContainer.classList.remove('hidden');
-                    if(app.credentials && app.credentials.length > 0) {
-                        app.credentials.forEach(cred => addCredentialRow(cred.user, cred.pass));
-                    }
-                } else {
-                    appCredentialsContainer.classList.add('hidden');
-                }
-                appCredentialsContainer.appendChild(addCredentialBtn);
-                addModal.classList.remove('invisible', 'opacity-0');
-                modalContent.classList.remove('scale-95', 'opacity-0');
-            };
+$('loginBtn').addEventListener('click', () => openOv('ovGLogin'));
+$('googleLoginBtn').addEventListener('click', async () => {
+  $('gLoginError').textContent = '';
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const email  = result.user.email || '';
+    if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
+      await signOut(auth);
+      $('gLoginError').textContent = `Acesso restrito a contas @${ALLOWED_DOMAIN}.`;
+      return;
+    }
+    isAuth     = true;
+    isLoggedIn = (email === EDITOR_EMAIL);
+    userId     = result.user.uid;
+    sessionStorage.setItem('isUserLoggedIn', 'true');
+    updateAuthUI();
+    setUserInfo(result.user);
+    ensureListener();
+    showDashboard();
+    closeOv('ovGLogin');
+  } catch(err) {
+    console.error(err);
+    $('gLoginError').textContent = fmtError(err);
+  }
+});
 
-            const closeAddModal = () => {
-                modalContent.classList.add('scale-95', 'opacity-0');
-                addModal.classList.add('opacity-0');
-                setTimeout(() => {
-                    addModal.classList.add('invisible');
-                    addAppForm.reset();
-                    editingAppIndex = null;
-                }, 300);
-            };
+$('logoutBtn').addEventListener('click', async () => {
+  try { await signOut(auth); } catch(e) { console.error(e); }
+  isLoggedIn = isAuth = false;
+  sessionStorage.removeItem('isUserLoggedIn');
+  sessionStorage.removeItem(VIEWER_KEY);
+  updateAuthUI();
+  setUserInfo(null);
+  $('dashboardContainer').style.visibility = 'hidden';
+  if (isInViewer) {
+    $('appViewer').classList.remove('visible');
+    $('appFrame').src = 'about:blank';
+    isInViewer = false;
+  }
+  openOv('ovGLogin');
+});
 
-            const openAppLoginModal = (index) => {
-                appToOpenAfterLogin = index;
-                appLoginTitle.textContent = `Acesso para "${apps[index].name}"`;
-                appLoginModal.classList.remove('invisible', 'opacity-0');
-                appLoginModalContent.classList.remove('scale-95', 'opacity-0');
-            };
+/* ── Auth state observer ─────────────────────────────────────── */
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    const email = user.email || '';
+    if (!email.endsWith('@' + ALLOWED_DOMAIN)) { await signOut(auth); return; }
+    userId     = user.uid;
+    isAuth     = true;
+    isLoggedIn = (email === EDITOR_EMAIL);
+    updateAuthUI();
+    setUserInfo(user);
+    ensureListener();
+  } else {
+    isAuth = isLoggedIn = false;
+    updateAuthUI();
+    setUserInfo(null);
+    $('loadingOverlay').classList.add('opacity-0');
+    setTimeout(() => {
+      $('loadingOverlay').classList.add('hidden');
+      openOv('ovGLogin');
+    }, 300);
+  }
+});
 
-            const closeAppLoginModal = () => {
-                appLoginModalContent.classList.add('scale-95', 'opacity-0');
-                appLoginModal.classList.add('opacity-0');
-                setTimeout(() => {
-                    appLoginModal.classList.add('invisible');
-                    appLoginForm.reset();
-                    appLoginError.textContent = '';
-                    appToOpenAfterLogin = null;
-                }, 300);
-            };
-            
-            const openDeleteModal = (index) => {
-                indexToDelete = index;
-                deleteModalText.textContent = `Você tem certeza que deseja remover o aplicativo "${apps[index].name}"?`;
-                deleteConfirmModal.classList.remove('invisible', 'opacity-0');
-                deleteModalContent.classList.remove('scale-95', 'opacity-0');
-            };
+/* ── Sidebar ─────────────────────────────────────────────────── */
+$('sbToggle').addEventListener('click', () => {
+  sbCollapsed = !sbCollapsed;
+  $('sidebar').classList.toggle('collapsed', sbCollapsed);
+});
 
-            const closeDeleteModal = () => {
-                deleteModalContent.classList.add('scale-95', 'opacity-0');
-                deleteConfirmModal.classList.add('opacity-0');
-                setTimeout(() => {
-                    deleteConfirmModal.classList.add('invisible');
-                    indexToDelete = null;
-                }, 300);
-            };
+function renderSidebar() {
+  $('countAll').textContent = apps.length;
+  const cats = [...new Set(apps.map(a => a.category))].sort();
+  const $nav = $('catNav');
+  $nav.innerHTML = '';
+  cats.forEach(cat => {
+    const color   = catColor(cat);
+    const catApps = apps.filter(a => a.category === cat);
+    const isOpen  = !!openCats[cat];
+    const entry = document.createElement('div');
+    entry.className = 'cat-entry' + (isOpen ? ' open' : '');
 
-            const openLoginModal = () => {
-                loginModal.classList.remove('invisible', 'opacity-0');
-                loginModalContent.classList.remove('scale-95', 'opacity-0');
-            };
+    const hdr = document.createElement('button');
+    hdr.className = 'cat-header';
+    hdr.innerHTML = `
+      <span class="ch-dot" style="background:${color}"></span>
+      <span class="ch-lbl">${cat}</span>
+      <span class="ch-cnt">${catApps.length}</span>
+      <svg class="ch-arr" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>`;
+    hdr.addEventListener('click', () => {
+      openCats[cat] = !openCats[cat];
+      entry.classList.toggle('open', openCats[cat]);
+      if (openCats[cat]) setFilter(cat);
+    });
 
-            const closeLoginModal = () => {
-                loginModalContent.classList.add('scale-95', 'opacity-0');
-                loginModal.classList.add('opacity-0');
-                setTimeout(() => {
-                    loginModal.classList.add('invisible');
-                    loginError.textContent = '';
-                }, 300);
-            };
-            
-            const addCredentialRow = (user = '', pass = '') => {
-                const row = document.createElement('div');
-                row.className = 'flex items-center space-x-2 credential-row';
-                row.innerHTML = `
-                    <input type="text" value="${user}" class="w-full px-2 py-1 border border-gray-300 rounded-md text-sm app-cred-user" placeholder="Usuário" required>
-                    <input type="text" value="${pass}" class="w-full px-2 py-1 border border-gray-300 rounded-md text-sm app-cred-pass" placeholder="Senha" required>
-                    <button type="button" class="remove-cred-btn flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-red-500 hover:text-white transition-colors">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                `;
-                addCredentialBtn.before(row);
-                row.querySelector('.remove-cred-btn').addEventListener('click', () => row.remove());
-            };
-            
-            // --- Funções de Manipulação de Eventos ---
-            const handleFormSubmit = async (e) => {
-                e.preventDefault();
-                const iconFile = e.target.appIconFile.files[0];
+    const wrap = document.createElement('div');
+    wrap.className = 'cat-apps';
+    catApps.forEach(app => {
+      const idx = apps.findIndex(a => a.id === app.id);
+      const item = document.createElement('div');
+      item.className = 'app-item';
+      item.style.setProperty('--item-color', color);
+      item.innerHTML = `
+        <span class="ai-mini" style="background:linear-gradient(135deg,${color}cc,${color}55)">${app.name.charAt(0)}</span>
+        <span class="ai-name">${app.name}</span>
+        ${app.requiresAuth ? `<svg class="ai-lock" width="10" height="10" fill="none" stroke="${color}" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` : ''}`;
+      item.addEventListener('click', () => {
+        if (app.requiresAuth) { loginIdx = idx; openAppLogin(); }
+        else launchApp(idx);
+      });
+      wrap.appendChild(item);
+    });
+    entry.appendChild(hdr);
+    entry.appendChild(wrap);
+    $nav.appendChild(entry);
+  });
+  document.querySelectorAll('.nav-top').forEach(b =>
+    b.classList.toggle('active', b.dataset.filter === activeFilter));
+}
 
-                let iconData = editingAppIndex !== null ? (apps[editingAppIndex].iconData || '') : '';
+function setFilter(f) {
+  activeFilter = f; searchQ = '';
+  $('searchInput').value = '';
+  renderGrid(); renderSidebar();
+}
 
-                if (iconCleared) {
-                    iconData = '';
-                }
+document.querySelectorAll('.nav-top').forEach(b =>
+  b.addEventListener('click', () => setFilter(b.dataset.filter)));
 
-                const appUrlValue = e.target.appUrl.value.trim();
-                if (!isSafeUrl(appUrlValue)) {
-                    alert('URL inválida. Use http(s) ou caminhos relativos seguros.');
-                    return;
-                }
+/* ── Grid ────────────────────────────────────────────────────── */
+function renderStats() {
+  $('sTotal').textContent = apps.length;
+  $('sCats').textContent  = new Set(apps.map(a => a.category)).size;
+  $('sPriv').textContent  = apps.filter(a => a.requiresAuth).length;
+}
 
-                if (iconFile) {
-                    if (iconFile.size > 2 * 1024 * 1024) {
-                        alert('Imagem muito grande. Use um arquivo até 2MB.');
-                        return;
-                    }
-                    try {
-                        iconData = await resizeImageToDataURL(iconFile, 256);
-                    } catch (uploadError) {
-                        console.error('Erro ao processar ícone:', uploadError);
-                        alert('Não foi possível processar a imagem. Tente novamente.');
-                        return;
-                    }
-                }
+function renderGrid() {
+  renderStats();
+  const q = searchQ.toLowerCase().trim();
+  const area = $('appArea');
+  area.innerHTML = '';
+  const list = apps.filter(a => {
+    const mc = activeFilter === 'all' || a.category === activeFilter;
+    const mq = !q || a.name.toLowerCase().includes(q) || (a.description||'').toLowerCase().includes(q) || a.category.toLowerCase().includes(q);
+    return mc && mq;
+  });
+  if (!list.length) {
+    area.innerHTML = `<div class="empty-state">
+      <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <h3>${q ? `Sem resultados para "${q}"` : 'Nenhum app disponível'}</h3>
+      <p>${q ? 'Tente outro termo.' : isLoggedIn ? 'Clique em "Novo App" para adicionar.' : 'Aguardando dados…'}</p>
+    </div>`;
+    return;
+  }
+  if (activeFilter === 'all') {
+    const bycat = {};
+    list.forEach(a => { if (!bycat[a.category]) bycat[a.category] = []; bycat[a.category].push(a); });
+    Object.keys(bycat).sort().forEach(cat => renderSection(cat, bycat[cat], area));
+  } else {
+    renderSection(activeFilter, list, area, true);
+  }
+}
 
-                const newApp = {
-                    id: editingAppIndex !== null ? (apps[editingAppIndex].id || `app_${Date.now()}`) : `app_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
-                    name: e.target.appName.value.trim(),
-                    url: appUrlValue,
-                    category: e.target.appCategory.value.trim(),
-                    description: e.target.appDesc.value.trim(),
-                    iconData,
-                    requiresAuth: e.target.appRequiresAuth.checked,
-                    credentials: []
-                };
+function renderSection(cat, items, parent, flat=false) {
+  const color = catColor(cat);
+  const block = document.createElement('div');
+  block.className = 'sec-block';
+  if (!flat) {
+    const hdr = document.createElement('div');
+    hdr.className = 'sec-head';
+    hdr.innerHTML = `<span class="sec-dot" style="background:${color}"></span><span class="sec-title">${cat}</span><span class="sec-count">${items.length}</span>`;
+    block.appendChild(hdr);
+  }
+  const grid = document.createElement('div');
+  grid.className = 'app-grid';
+  items.forEach(a => grid.appendChild(makeCard(a)));
+  block.appendChild(grid);
+  parent.appendChild(block);
+}
 
-                if (newApp.requiresAuth) {
-                    document.querySelectorAll('.credential-row').forEach(row => {
-                        const user = row.querySelector('.app-cred-user').value.trim();
-                        const pass = row.querySelector('.app-cred-pass').value.trim();
-                        if (user && pass) {
-                            newApp.credentials.push({ user, pass });
-                        }
-                    });
-                }
-                
-                if (editingAppIndex !== null) {
-                    apps[editingAppIndex] = newApp;
-                } else {
-                    apps.push(newApp);
-                }
-                
-                saveAppsToFirestore();
-                closeAddModal();
-            };
-            
-            const launchApp = (index) => {
-                const app = apps[index];
-                if (!isSafeUrl(app.url)) {
-                    alert('URL do app bloqueada por segurança.');
-                    return;
-                }
-                appViewerTitle.textContent = app.name;
-                appFrame.src = app.url;
-                dashboardContainer.classList.add('hidden');
-                appViewer.classList.remove('invisible', 'opacity-0');
-                isInViewer = true;
-                sessionStorage.setItem(VIEWER_KEY, app.id);
-            };
+function makeCard(app) {
+  const idx   = apps.findIndex(a => a.id === app.id);
+  const color = appColor(app.name);
+  const card  = document.createElement('div');
+  card.className = 'app-card';
+  const icoStyle = app.iconData
+    ? `background-image:url('${app.iconData}');background-size:cover;background-position:center;`
+    : `background:linear-gradient(135deg,${color}dd,${color}77)`;
+  const icoContent = app.iconData ? '' : app.name.charAt(0).toUpperCase();
+  card.innerHTML = `
+    ${app.requiresAuth ? `<div class="card-lock"><svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>` : ''}
+    <div class="card-ico" style="${icoStyle}">${icoContent}</div>
+    <div class="card-name">${app.name}</div>
+    ${app.description ? `<div class="card-desc">${app.description}</div>` : ''}
+    <div class="card-acts">
+      <button class="ca card-act-edit" data-idx="${idx}" title="Editar"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+      <button class="ca del card-act-del" data-idx="${idx}" title="Remover"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>`;
+  card.addEventListener('click', e => {
+    const btn = e.target.closest('.ca');
+    if (btn) {
+      e.stopPropagation();
+      const i = parseInt(btn.dataset.idx, 10);
+      if (btn.classList.contains('del')) openDelete(i); else openEdit(i);
+      return;
+    }
+    if (app.requiresAuth) { loginIdx = idx; openAppLogin(); }
+    else launchApp(idx);
+  });
+  return card;
+}
 
-            const handleGridClick = (e) => {
-                const toggleBtn = e.target.closest('.category-toggle');
-                if (toggleBtn) {
-                    e.preventDefault();
-                    const cat = toggleBtn.dataset.category;
-                    collapsedCategories[cat] = !collapsedCategories[cat];
-                    renderApps();
-                    return;
-                }
+/* ── Viewer ──────────────────────────────────────────────────── */
+function launchApp(idx) {
+  const app = apps[idx];
+  if (!isSafeUrl(app.url)) { toast('URL bloqueada por segurança.', 'er'); return; }
+  $('viewerTitle').textContent = app.name;
+  $('viewerUrl').textContent   = app.url;
+  $('viewerNewTab').onclick     = () => window.open(app.url, '_blank');
+  $('appFrame').src             = app.url;
+  $('appViewer').classList.add('visible');
+  $('sLast').textContent        = app.name;
+  isInViewer = true;
+  sessionStorage.setItem(VIEWER_KEY, app.id);
+}
 
-                const deleteButton = e.target.closest('.delete-btn');
-                const editButton = e.target.closest('.edit-btn');
-                const appLink = e.target.closest('.app-link');
+function restoreViewer() {
+  if (isInViewer) return;
+  const id = sessionStorage.getItem(VIEWER_KEY);
+  if (!id) return;
+  const idx = apps.findIndex(a => a.id === id);
+  if (idx === -1 || apps[idx].requiresAuth) { sessionStorage.removeItem(VIEWER_KEY); return; }
+  launchApp(idx);
+}
 
-                if (deleteButton) {
-                    e.preventDefault();
-                    if (isLoggedIn) openDeleteModal(parseInt(deleteButton.dataset.index, 10));
-                    return;
-                }
-                if (editButton) {
-                    e.preventDefault();
-                    if (isLoggedIn) openAddModalForEdit(parseInt(editButton.dataset.index, 10));
-                    return;
-                }
-                if (appLink) {
-                    e.preventDefault();
-                    const index = parseInt(appLink.dataset.index, 10);
-                    const app = apps[index];
-                    if (app.requiresAuth) {
-                        openAppLoginModal(index);
-                    } else {
-                        launchApp(index);
-                    }
-                }
-            };
+$('backBtn').addEventListener('click', () => {
+  $('appViewer').classList.remove('visible');
+  $('appFrame').src = 'about:blank';
+  isInViewer = false;
+  sessionStorage.removeItem(VIEWER_KEY);
+});
 
-            const handleBackToDashboard = () => {
-                appViewer.classList.add('invisible', 'opacity-0');
-                dashboardContainer.classList.remove('hidden');
-                appFrame.src = 'about:blank';
-                appViewerTitle.textContent = '';
-                isInViewer = false;
-                sessionStorage.removeItem(VIEWER_KEY);
-            };
-            
-            const handleDeleteConfirm = () => {
-                if (indexToDelete !== null) {
-                    apps.splice(indexToDelete, 1);
-                    saveAppsToFirestore();
-                    closeDeleteModal();
-                }
-            };
-            
-            const handleAppLoginSubmit = (e) => {
-                e.preventDefault();
-                const app = apps[appToOpenAfterLogin];
-                const username = e.target.appUsername.value;
-                const password = e.target.appPassword.value;
-                const isValid = app.credentials.some(cred => cred.user === username && cred.pass === password);
+/* ── Add / Edit modal ────────────────────────────────────────── */
+function openAdd() {
+  editId = null; iconCleared = false; iconData64 = null;
+  $('mAddTitle').textContent = 'Novo Aplicativo';
+  $('addForm').reset();
+  $('credsList').innerHTML = '';
+  $('credsWrap').style.display = 'none';
+  $('fIconRemove').style.display = 'none';
+  $('fIconLabel').textContent = 'Selecionar imagem (máx. 2MB)';
+  openOv('ovAdd');
+}
 
-                if (isValid) {
-                    closeAppLoginModal();
-                    launchApp(appToOpenAfterLogin);
-                } else {
-                    appLoginError.textContent = "Usuário ou senha inválidos para este app.";
-                }
-            };
+function openEdit(idx) {
+  const a = apps[idx]; editId = a.id; iconCleared = false; iconData64 = a.iconData || null;
+  $('mAddTitle').textContent = 'Editar Aplicativo';
+  $('fName').value = a.name; $('fUrl').value = a.url;
+  $('fCat').value  = a.category; $('fDesc').value = a.description || '';
+  $('fAuth').checked = a.requiresAuth;
+  $('credsList').innerHTML = '';
+  $('credsWrap').style.display = a.requiresAuth ? 'block' : 'none';
+  if (a.requiresAuth) (a.credentials || []).forEach(c => addCredRow(c.user, c.pass));
+  $('fIconRemove').style.display = a.iconData ? 'flex' : 'none';
+  $('fIconLabel').textContent = a.iconData ? 'Ícone definido (clique para trocar)' : 'Selecionar imagem (máx. 2MB)';
+  openOv('ovAdd');
+}
 
+$('mAddClose').addEventListener('click', () => closeOv('ovAdd'));
+$('mAddCancel').addEventListener('click', () => closeOv('ovAdd'));
+$('addAppBtn').addEventListener('click', openAdd);
+$('fAuth').addEventListener('change', e => $('credsWrap').style.display = e.target.checked ? 'block' : 'none');
 
-            // --- Lógica de Login/Logout ---
-            const googleProvider = new GoogleAuthProvider();
-            googleProvider.setCustomParameters({
-                hd: 'grupotbx.com.br',
-                prompt: 'select_account'
-            });
-            const updateLoginStateUI = () => {
-                document.body.classList.toggle('logged-in', isLoggedIn);
-                document.body.classList.toggle('authenticated', isAuthenticated);
-            };
+$('fIcon').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { toast('Imagem muito grande. Máx 2MB.', 'er'); return; }
+  try {
+    iconData64 = await resizeImg(file, 256);
+    $('fIconLabel').textContent = file.name;
+    $('fIconRemove').style.display = 'flex';
+  } catch { toast('Erro ao processar imagem.', 'er'); }
+});
 
-            const handleGoogleLogin = async () => {
-                loginError.textContent = '';
-                try {
-                    const result = await signInWithPopup(auth, googleProvider);
-                    const email = result.user.email || '';
-                    if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
-                        await signOut(auth);
-                        loginError.textContent = `Acesso restrito a contas @${ALLOWED_DOMAIN}.`;
-                        return;
-                    }
-                    isAuthenticated = true;
-                    isLoggedIn = (email === EDITOR_EMAIL);
-                    sessionStorage.setItem('isUserLoggedIn', 'true');
-                    updateLoginStateUI();
-                    ensureFirestoreListener();
-                    loadingOverlay.classList.add('opacity-0');
-                    setTimeout(() => {
-                        loadingOverlay.classList.add('hidden');
-                        dashboardContainer.classList.remove('invisible');
-                    }, 300);
-                    closeLoginModal();
-                } catch (err) {
-                    console.error('Erro login Google:', err);
-                    loginError.textContent = formatFirebaseError(err);
-                }
-            };
+$('fIconRemove').addEventListener('click', () => {
+  iconCleared = true; iconData64 = null;
+  $('fIcon').value = '';
+  $('fIconLabel').textContent = 'Selecionar imagem (máx. 2MB)';
+  $('fIconRemove').style.display = 'none';
+});
 
-            const handleLogout = async () => {
-                try { await signOut(auth); } catch (err) { console.error('Erro ao sair:', err); }
-                isLoggedIn = false;
-                isAuthenticated = false;
-                sessionStorage.removeItem('isUserLoggedIn');
-                sessionStorage.removeItem(VIEWER_KEY);
-                updateLoginStateUI();
-                // Esconde painel e exibe modal de login
-                dashboardContainer.classList.add('invisible');
-                if (isInViewer) {
-                    appViewer.classList.add('invisible', 'opacity-0');
-                    appFrame.src = 'about:blank';
-                    isInViewer = false;
-                }
-                openLoginModal();
-            };
+function addCredRow(u='', p='') {
+  const row = document.createElement('div');
+  row.className = 'cred-row';
+  row.innerHTML = `
+    <input class="form-input cu" placeholder="Usuário" value="${u}" required style="font-size:12.5px;padding:6px 9px;">
+    <input class="form-input cp" placeholder="Senha"   value="${p}" required style="font-size:12.5px;padding:6px 9px;">
+    <button type="button" class="cred-rm"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+  row.querySelector('.cred-rm').addEventListener('click', () => row.remove());
+  $('credsList').appendChild(row);
+}
+$('addCredBtn').addEventListener('click', () => addCredRow());
 
-            // --- Event Listeners ---
-            loginBtn.addEventListener('click', openLoginModal);
-            logoutBtn.addEventListener('click', handleLogout);
-            document.getElementById('googleLoginBtn').addEventListener('click', handleGoogleLogin);
-            cancelLoginBtn.addEventListener('click', closeLoginModal);
-            loginModal.addEventListener('click', (e) => { if (e.target === loginModal) closeLoginModal(); });
+$('addForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const creds = [];
+  document.querySelectorAll('.cred-row').forEach(r => {
+    const u = r.querySelector('.cu').value.trim();
+    const p = r.querySelector('.cp').value.trim();
+    if (u && p) creds.push({ user: u, pass: p });
+  });
+  const urlVal = $('fUrl').value.trim();
+  if (!isSafeUrl(urlVal)) { toast('URL inválida. Use http(s) ou caminhos relativos.', 'er'); return; }
 
-            appLoginForm.addEventListener('submit', handleAppLoginSubmit);
-            cancelAppLoginBtn.addEventListener('click', closeAppLoginModal);
-            appLoginModal.addEventListener('click', (e) => { if (e.target === appLoginModal) closeAppLoginModal(); });
-            
-            addAppBtn.addEventListener('click', openAddModal);
-            cancelBtn.addEventListener('click', closeAddModal);
-            addModal.addEventListener('click', (e) => { if (e.target === addModal) closeAddModal(); });
-            addAppForm.addEventListener('submit', handleFormSubmit);
-            
-            appRequiresAuth.addEventListener('change', () => appCredentialsContainer.classList.toggle('hidden', !appRequiresAuth.checked));
-            addCredentialBtn.addEventListener('click', () => addCredentialRow());
+  const newApp = {
+    id:           editId || `app_${Date.now()}_${Math.floor(Math.random()*100000)}`,
+    name:         $('fName').value.trim(),
+    url:          urlVal,
+    category:     $('fCat').value.trim(),
+    description:  $('fDesc').value.trim(),
+    iconData:     iconCleared ? '' : (iconData64 !== null ? iconData64 : (editId ? (apps.find(a=>a.id===editId)?.iconData || '') : '')),
+    requiresAuth: $('fAuth').checked,
+    credentials:  creds
+  };
 
-            removeIconBtn.addEventListener('click', () => {
-                iconCleared = true;
-                addAppForm.appIconFile.value = '';
-                removeIconBtn.classList.add('hidden');
-            });
-            
-            appGrid.addEventListener('click', handleGridClick);
-            backToDashboardBtn.addEventListener('click', handleBackToDashboard);
+  if (editId) { const i = apps.findIndex(a => a.id === editId); if (i > -1) apps[i] = newApp; toast('App atualizado!', 'ok'); }
+  else        { apps.push(newApp); toast('App adicionado!', 'ok'); }
 
-            cancelDeleteBtn.addEventListener('click', closeDeleteModal);
-            confirmDeleteBtn.addEventListener('click', handleDeleteConfirm);
-            deleteConfirmModal.addEventListener('click', (e) => { if (e.target === deleteConfirmModal) closeDeleteModal(); });
+  saveToFirestore();
+  closeOv('ovAdd');
+});
 
-            // --- Inicialização com Firebase ---
-            const initializeAppWithFirestore = async () => {
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        const email = user.email || '';
-                        if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
-                            // Conta fora do domínio - desconecta
-                            await signOut(auth);
-                            return;
-                        }
-                        userId = user.uid;
-                        isAuthenticated = true;
-                        isLoggedIn = (email === EDITOR_EMAIL);
-                        updateLoginStateUI();
-                        ensureFirestoreListener();
-                    } else {
-                        // Não autenticado: exibe modal de login
-                        isAuthenticated = false;
-                        isLoggedIn = false;
-                        updateLoginStateUI();
-                        loadingOverlay.classList.add('opacity-0');
-                        setTimeout(() => {
-                            loadingOverlay.classList.add('hidden');
-                            openLoginModal();
-                        }, 300);
-                    }
-                });
-            };
-            
-            if (db) {
-                initializeAppWithFirestore();
-            }
-        });
-    </script>
+/* ── Delete ──────────────────────────────────────────────────── */
+function openDelete(idx) {
+  deleteIdx = idx;
+  $('delText').textContent = `Remover "${apps[idx].name}"? Esta ação não pode ser desfeita.`;
+  openOv('ovDel');
+}
+$('delCancel').addEventListener('click',  () => closeOv('ovDel'));
+$('delConfirm').addEventListener('click', () => {
+  if (deleteIdx !== null) {
+    const name = apps[deleteIdx].name;
+    apps.splice(deleteIdx, 1);
+    deleteIdx = null;
+    saveToFirestore();
+    closeOv('ovDel');
+    renderGrid(); renderSidebar();
+    toast(`"${name}" removido.`, 'er');
+  }
+});
+
+/* ── App Login ───────────────────────────────────────────────── */
+function openAppLogin() {
+  const app   = apps[loginIdx];
+  const color = appColor(app.name);
+  const ico   = $('appLoginIco');
+  ico.textContent = app.name.charAt(0).toUpperCase();
+  ico.style.background = `linear-gradient(135deg,${color}dd,${color}77)`;
+  $('appLoginAppName').textContent = app.name;
+  $('alErr').textContent = '';
+  $('appLoginForm').reset();
+  openOv('ovAppLogin');
+}
+$('alCancel').addEventListener('click', () => closeOv('ovAppLogin'));
+$('appLoginForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const app = apps[loginIdx];
+  const u = $('alUser').value, p = $('alPass').value;
+  if ((app.credentials || []).some(c => c.user === u && c.pass === p)) {
+    closeOv('ovAppLogin'); launchApp(loginIdx);
+  } else {
+    $('alErr').textContent = 'Credenciais incorretas.';
+  }
+});
+
+/* ── Search ──────────────────────────────────────────────────── */
+$('searchInput').addEventListener('input', e => {
+  searchQ = e.target.value;
+  if (searchQ) activeFilter = 'all';
+  renderGrid(); renderSidebar();
+});
+
+/* ── Keyboard ────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key === 'k') { e.preventDefault(); $('searchInput').focus(); }
+  if (e.key === 'Escape') {
+    ['ovGLogin','ovAdd','ovDel','ovAppLogin'].forEach(closeOv);
+    if (isInViewer) {
+      $('appViewer').classList.remove('visible');
+      $('appFrame').src = 'about:blank';
+      isInViewer = false; sessionStorage.removeItem(VIEWER_KEY);
+    }
+  }
+});
+
+/* ── Init sidebar ────────────────────────────────────────────── */
+const firstCat = [...new Set(apps.map(a => a.category))].sort()[0];
+if (firstCat) openCats[firstCat] = true;
+</script>
 </body>
 </html>
-
