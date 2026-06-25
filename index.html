@@ -622,6 +622,15 @@ input[type=file] { display: none; }
           <input type="file" id="fIcon" accept="image/*">
           <button type="button" id="fIconRemove" class="btn btn-ghost" style="display:none;margin-top:6px;padding:4px 10px;font-size:11.5px;">Remover ícone</button>
         </div>
+        <div class="form-group">
+          <label class="form-label">Modo de abertura</label>
+          <select class="form-input" id="fOpenMode" style="cursor:pointer;background:#060A12;color:#F0F4FF;">
+            <option value="auto">Automático (tenta iframe, fallback nova aba)</option>
+            <option value="tab">Sempre abrir em nova aba</option>
+            <option value="iframe">Sempre abrir no painel (iframe)</option>
+          </select>
+          <div class="form-hint">Use "Nova aba" para Google, Notion, Slack e outros que bloqueiam iframe.</div>
+        </div>
         <div class="form-group"><label class="form-check"><input type="checkbox" id="fAuth"><span class="form-check-lbl">Requer login específico</span></label></div>
         <div id="credsWrap" style="display:none;margin-bottom:14px;">
           <div class="form-label" style="margin-bottom:7px;">Credenciais de acesso</div>
@@ -1086,17 +1095,76 @@ function makeCard(app) {
 }
 
 /* ── Viewer ──────────────────────────────────────────────────── */
+
+// Domínios que bloqueiam iframe (X-Frame-Options: DENY/SAMEORIGIN)
+const IFRAME_BLOCKED = [
+  'google.com', 'accounts.google.com', 'notebooklm.google.com',
+  'docs.google.com', 'drive.google.com', 'mail.google.com',
+  'meet.google.com', 'calendar.google.com', 'sheets.google.com',
+  'slides.google.com', 'forms.google.com', 'chat.google.com',
+  'gmail.com', 'youtube.com', 'facebook.com', 'instagram.com',
+  'twitter.com', 'x.com', 'linkedin.com', 'github.com',
+  'notion.so', 'slack.com', 'zoom.us', 'figma.com',
+  'trello.com', 'atlassian.net', 'jira.atlassian.net', 'canva.com',
+];
+
+function isIframeBlocked(url) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    return IFRAME_BLOCKED.some(d => host === d || host.endsWith('.' + d));
+  } catch { return false; }
+}
+
 function launchApp(idx) {
   const app = apps[idx];
   if (!isSafeUrl(app.url)) { toast('URL bloqueada por segurança.', 'er'); return; }
+
+  $('sLast').textContent = app.name;
+  sessionStorage.setItem(VIEWER_KEY, app.id);
+
+  const mode = app.openMode || 'auto';
+
+  // Modo: sempre nova aba
+  if (mode === 'tab') {
+    window.open(app.url, '_blank');
+    toast(`"${app.name}" aberto em nova aba.`);
+    return;
+  }
+
+  // Modo auto: se o domínio bloqueia iframe, abre direto em nova aba
+  if (mode === 'auto' && isIframeBlocked(app.url)) {
+    window.open(app.url, '_blank');
+    toast(`"${app.name}" aberto em nova aba (não permite iframe).`);
+    return;
+  }
+
   $('viewerTitle').textContent = app.name;
   $('viewerUrl').textContent   = app.url;
   $('viewerNewTab').onclick     = () => window.open(app.url, '_blank');
   $('appFrame').src             = app.url;
   $('appViewer').classList.add('visible');
-  $('sLast').textContent        = app.name;
   isInViewer = true;
-  sessionStorage.setItem(VIEWER_KEY, app.id);
+
+  // Fallback: se o iframe disparar erro de carregamento, abre em nova aba
+  const frame = $('appFrame');
+  const fallbackTimer = setTimeout(() => {
+    try {
+      // Tenta verificar se o frame carregou algo útil
+      const loaded = frame.contentDocument || frame.contentWindow?.document;
+      if (!loaded || loaded.URL === 'about:blank') {
+        $('appViewer').classList.remove('visible');
+        frame.src = 'about:blank';
+        isInViewer = false;
+        sessionStorage.removeItem(VIEWER_KEY);
+        window.open(app.url, '_blank');
+        toast(`"${app.name}" aberto em nova aba (site bloqueou iframe).`);
+      }
+    } catch(e) {
+      // Cross-origin: se lançou erro de segurança, o frame carregou (OK)
+    }
+  }, 4000);
+
+  frame.onload = () => clearTimeout(fallbackTimer);
 }
 
 function restoreViewer() {
@@ -1124,6 +1192,7 @@ function openAdd() {
   $('credsWrap').style.display = 'none';
   $('fIconRemove').style.display = 'none';
   $('fIconLabel').textContent = 'Selecionar imagem (máx. 2MB)';
+  $('fOpenMode').value = 'auto';
   openOv('ovAdd');
 }
 
@@ -1133,6 +1202,7 @@ function openEdit(idx) {
   $('fName').value = a.name; $('fUrl').value = a.url;
   $('fCat').value  = a.category; $('fDesc').value = a.description || '';
   $('fAuth').checked = a.requiresAuth;
+  $('fOpenMode').value = a.openMode || 'auto';
   $('credsList').innerHTML = '';
   $('credsWrap').style.display = a.requiresAuth ? 'block' : 'none';
   if (a.requiresAuth) (a.credentials || []).forEach(c => addCredRow(c.user, c.pass));
@@ -1194,6 +1264,7 @@ $('addForm').addEventListener('submit', async e => {
     category:     $('fCat').value.trim(),
     description:  $('fDesc').value.trim(),
     iconData:     iconCleared ? '' : (iconData64 !== null ? iconData64 : (editId ? (apps.find(a=>a.id===editId)?.iconData || '') : '')),
+    openMode:     $('fOpenMode').value,
     requiresAuth: $('fAuth').checked,
     credentials:  creds
   };
